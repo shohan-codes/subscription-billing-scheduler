@@ -28,23 +28,16 @@ export class RequestLoggingInterceptor implements NestInterceptor {
 
         const startedAt = performance.now();
         const http = context.switchToHttp();
-        const request = http.getRequest();
+        const request = http.getRequest<unknown>();
         const response = http.getResponse<{ statusCode: number }>();
 
         return next.handle().pipe(
             tap({
                 next: () =>
-                    this.logger.info(
-                        'http.request.completed',
-                        {
-                            ...this.fields(
-                                request,
-                                response.statusCode,
-                                startedAt,
-                            ),
-                            result: 'success',
-                        },
-                    ),
+                    this.logger.info('http.request.completed', {
+                        ...this.fields(request, response.statusCode, startedAt),
+                        result: 'success',
+                    }),
                 error: (error: unknown) => {
                     const apiError = resolveApiError(error);
 
@@ -64,16 +57,12 @@ export class RequestLoggingInterceptor implements NestInterceptor {
         );
     }
 
-    private fields(
-        request: unknown,
-        statusCode: number,
-        startedAt: number,
-    ) {
+    private fields(request: unknown, statusCode: number, startedAt: number) {
         const adapter = this.adapterHost.httpAdapter;
-        const url = adapter.getRequestUrl(request);
+        const url = adapter.getRequestUrl(request) as string;
 
         return {
-            method: adapter.getRequestMethod(request),
+            method: adapter.getRequestMethod(request) as string,
             path: url.split('?', 1)[0],
             statusCode,
             durationMs: Math.round(performance.now() - startedAt),

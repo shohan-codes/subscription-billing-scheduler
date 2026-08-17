@@ -36,14 +36,12 @@ export class ResponseEnvelopeInterceptor implements NestInterceptor {
         }
 
         return next.handle().pipe(
-            map(
-                (data): ResponseEnvelope<unknown> => ({
-                    success: true,
-                    data: data ?? null,
-                    message: '',
-                    errors: [],
-                }),
-            ),
+            map((data): ResponseEnvelope<unknown> => ({
+                success: true,
+                data: data ?? null,
+                message: '',
+                errors: [],
+            })),
         );
     }
 }
