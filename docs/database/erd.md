@@ -136,5 +136,6 @@ erDiagram
 | `subscriptions_due_idx` | `(status, billing_state, next_billing_date, billing_retry_at, id)` | Supports deterministic due-subscription selection. |
 | `subscriptions_claim_expiry_idx` | `processing_expires_at WHERE processing_run_id IS NOT NULL` | Supports expired-claim recovery. |
 | `invoices_customer_date_idx` | `(customer_reference, issue_date DESC)` | Supports invoice history lookup. |
+| `invoice_items_invoice_id_idx` | `(invoice_id)` | Supports invoice line-item lookup. |
 | `run_items_run_result_idx` | `(run_id, result)` | Supports run outcome filtering. |
 | `runs_job_time_idx` | `(job_name, triggered_at DESC)` | Supports recent scheduler-run history. |

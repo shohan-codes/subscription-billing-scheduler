@@ -104,6 +104,7 @@ export interface InvoicesTable {
     billing_period_start: DateValue;
     billing_period_end: DateValue;
     issue_date: DateValue;
+    /** Invoice rows are created directly in the issued state. */
     status: 'issued';
     currency: string;
     subtotal: NumericValue;

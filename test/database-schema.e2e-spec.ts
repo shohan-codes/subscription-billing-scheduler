@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Kysely, PostgresDialect, sql } from 'kysely';
 import { Pool } from 'pg';
 import type { DatabaseSchema } from '../src/database/database.types';
@@ -17,7 +18,7 @@ describe('Core database schema', () => {
         await database.destroy();
     });
 
-    it('contains the required tables, keys, and indexes', async () => {
+    it('contains the required tables, keys, indexes, and triggers', async () => {
         const tables = await sql<{ table_name: string }>`
             select table_name
             from information_schema.tables
@@ -93,12 +94,14 @@ describe('Core database schema', () => {
                 'invoices_period_uniq',
                 'invoices_idempotency_uniq',
                 'invoices_customer_date_idx',
+                'invoice_items_invoice_id_idx',
                 'run_items_run_result_idx',
                 'runs_job_time_idx'
               )
         `.execute(database);
 
         expect(indexes.rows.map(({ indexname }) => indexname).sort()).toEqual([
+            'invoice_items_invoice_id_idx',
             'invoices_customer_date_idx',
             'invoices_idempotency_uniq',
             'invoices_period_uniq',
@@ -125,5 +128,68 @@ describe('Core database schema', () => {
                 .map(({ constraint_name }) => constraint_name)
                 .sort(),
         ).toEqual(['invoices_idempotency_uniq', 'invoices_period_uniq']);
+
+        const triggers = await sql<{
+            event_object_table: string;
+            trigger_name: string;
+        }>`
+            select event_object_table, trigger_name
+            from information_schema.triggers
+            where trigger_schema = 'public'
+              and trigger_name in (
+                'scheduler_runs_set_updated_at',
+                'subscriptions_set_updated_at',
+                'scheduler_locks_set_updated_at'
+              )
+        `.execute(database);
+
+        expect(
+            triggers.rows
+                .map(
+                    ({ event_object_table, trigger_name }) =>
+                        `${event_object_table}.${trigger_name}`,
+                )
+                .sort(),
+        ).toEqual([
+            'scheduler_locks.scheduler_locks_set_updated_at',
+            'scheduler_runs.scheduler_runs_set_updated_at',
+            'subscriptions.subscriptions_set_updated_at',
+        ]);
+    });
+
+    it('updates updated_at automatically on mutable rows', async () => {
+        const lockName = `schema-test-${randomUUID()}`;
+        const staleTimestamp = new Date('2000-01-01T00:00:00.000Z');
+        const now = new Date();
+
+        await database
+            .insertInto('scheduler_locks')
+            .values({
+                lock_name: lockName,
+                owner_token: 'owner-1',
+                acquired_at: now,
+                lease_expires_at: new Date(now.getTime() + 60_000),
+                heartbeat_at: now,
+                updated_at: staleTimestamp,
+            })
+            .execute();
+
+        try {
+            const updated = await database
+                .updateTable('scheduler_locks')
+                .set({ owner_token: 'owner-2' })
+                .where('lock_name', '=', lockName)
+                .returning('updated_at')
+                .executeTakeFirstOrThrow();
+
+            expect(updated.updated_at.getTime()).toBeGreaterThan(
+                staleTimestamp.getTime(),
+            );
+        } finally {
+            await database
+                .deleteFrom('scheduler_locks')
+                .where('lock_name', '=', lockName)
+                .execute();
+        }
     });
 });

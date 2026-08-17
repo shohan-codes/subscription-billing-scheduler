@@ -286,6 +286,12 @@ export async function up(db: Kysely<unknown>): Promise<void> {
         .execute();
 
     await db.schema
+        .createIndex('invoice_items_invoice_id_idx')
+        .on('invoice_items')
+        .column('invoice_id')
+        .execute();
+
+    await db.schema
         .createIndex('run_items_run_result_idx')
         .on('scheduler_run_items')
         .columns(['run_id', 'result'])
@@ -296,6 +302,39 @@ export async function up(db: Kysely<unknown>): Promise<void> {
         .on('scheduler_runs')
         .columns(['job_name', 'triggered_at desc'])
         .execute();
+
+    await sql`
+        create function set_updated_at()
+        returns trigger
+        language plpgsql
+        as $$
+        begin
+            new.updated_at = now();
+            return new;
+        end;
+        $$
+    `.execute(db);
+
+    await sql`
+        create trigger scheduler_runs_set_updated_at
+        before update on scheduler_runs
+        for each row
+        execute function set_updated_at()
+    `.execute(db);
+
+    await sql`
+        create trigger subscriptions_set_updated_at
+        before update on subscriptions
+        for each row
+        execute function set_updated_at()
+    `.execute(db);
+
+    await sql`
+        create trigger scheduler_locks_set_updated_at
+        before update on scheduler_locks
+        for each row
+        execute function set_updated_at()
+    `.execute(db);
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
@@ -305,4 +344,5 @@ export async function down(db: Kysely<unknown>): Promise<void> {
     await db.schema.dropTable('scheduler_locks').execute();
     await db.schema.dropTable('subscriptions').execute();
     await db.schema.dropTable('scheduler_runs').execute();
+    await sql`drop function set_updated_at()`.execute(db);
 }
