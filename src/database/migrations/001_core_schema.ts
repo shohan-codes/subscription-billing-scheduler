@@ -67,8 +67,12 @@ export async function up(db: Kysely<unknown>): Promise<void> {
         .addColumn('amount', sql`numeric(19, 4)`, (column) => column.notNull())
         .addColumn('start_date', 'date', (column) => column.notNull())
         .addColumn('next_billing_date', 'date', (column) => column.notNull())
-        .addColumn('billing_anchor_day', 'smallint', (column) => column.notNull())
-        .addColumn('anchor_is_month_end', 'boolean', (column) => column.notNull())
+        .addColumn('billing_anchor_day', 'smallint', (column) =>
+            column.notNull(),
+        )
+        .addColumn('anchor_is_month_end', 'boolean', (column) =>
+            column.notNull(),
+        )
         .addColumn('billing_failure_count', 'integer', (column) =>
             column.notNull().defaultTo(0),
         )
@@ -119,7 +123,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
         .addColumn('lock_name', 'varchar(100)', (column) => column.primaryKey())
         .addColumn('owner_token', 'varchar(160)', (column) => column.notNull())
         .addColumn('acquired_at', 'timestamptz', (column) => column.notNull())
-        .addColumn('lease_expires_at', 'timestamptz', (column) => column.notNull())
+        .addColumn('lease_expires_at', 'timestamptz', (column) =>
+            column.notNull(),
+        )
         .addColumn('heartbeat_at', 'timestamptz', (column) => column.notNull())
         .addColumn('version', 'integer', (column) =>
             column.notNull().defaultTo(1),
@@ -136,7 +142,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     await db.schema
         .createTable('invoices')
         .addColumn('id', 'uuid', (column) => column.primaryKey())
-        .addColumn('invoice_number', 'varchar(40)', (column) => column.notNull())
+        .addColumn('invoice_number', 'varchar(40)', (column) =>
+            column.notNull(),
+        )
         .addColumn('subscription_id', 'uuid', (column) =>
             column.notNull().references('subscriptions.id'),
         )
@@ -148,7 +156,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
         .addColumn('issue_date', 'date', (column) => column.notNull())
         .addColumn('status', 'varchar(20)', (column) => column.notNull())
         .addColumn('currency', 'char(3)', (column) => column.notNull())
-        .addColumn('subtotal', sql`numeric(19, 4)`, (column) => column.notNull())
+        .addColumn('subtotal', sql`numeric(19, 4)`, (column) =>
+            column.notNull(),
+        )
         .addColumn('tax_total', sql`numeric(19, 4)`, (column) =>
             column.notNull().defaultTo(0),
         )
@@ -197,8 +207,12 @@ export async function up(db: Kysely<unknown>): Promise<void> {
         .addColumn('quantity', sql`numeric(12, 4)`, (column) =>
             column.notNull().defaultTo(1),
         )
-        .addColumn('unit_price', sql`numeric(19, 4)`, (column) => column.notNull())
-        .addColumn('line_total', sql`numeric(19, 4)`, (column) => column.notNull())
+        .addColumn('unit_price', sql`numeric(19, 4)`, (column) =>
+            column.notNull(),
+        )
+        .addColumn('line_total', sql`numeric(19, 4)`, (column) =>
+            column.notNull(),
+        )
         .addColumn('created_at', 'timestamptz', (column) =>
             column.notNull().defaultTo(sql`now()`),
         )

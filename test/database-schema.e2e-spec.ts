@@ -32,17 +32,14 @@ describe('Core database schema', () => {
               )
         `.execute(database);
 
-        expect(tables.rows.map(({ table_name }) => table_name).sort()).toEqual(
-            [
-                'invoice_items',
-                'invoices',
-                'scheduler_locks',
-                'scheduler_run_items',
-                'scheduler_runs',
-                'subscriptions',
-            ],
-        );
-
+        expect(tables.rows.map(({ table_name }) => table_name).sort()).toEqual([
+            'invoice_items',
+            'invoices',
+            'scheduler_locks',
+            'scheduler_run_items',
+            'scheduler_runs',
+            'subscriptions',
+        ]);
 
         const foreignKeys = await sql<{
             table_name: string;
@@ -101,17 +98,15 @@ describe('Core database schema', () => {
               )
         `.execute(database);
 
-        expect(indexes.rows.map(({ indexname }) => indexname).sort()).toEqual(
-            [
-                'invoices_customer_date_idx',
-                'invoices_idempotency_uniq',
-                'invoices_period_uniq',
-                'run_items_run_result_idx',
-                'runs_job_time_idx',
-                'subscriptions_claim_expiry_idx',
-                'subscriptions_due_idx',
-            ],
-        );
+        expect(indexes.rows.map(({ indexname }) => indexname).sort()).toEqual([
+            'invoices_customer_date_idx',
+            'invoices_idempotency_uniq',
+            'invoices_period_uniq',
+            'run_items_run_result_idx',
+            'runs_job_time_idx',
+            'subscriptions_claim_expiry_idx',
+            'subscriptions_due_idx',
+        ]);
 
         const constraints = await sql<{ constraint_name: string }>`
             select constraint_name
