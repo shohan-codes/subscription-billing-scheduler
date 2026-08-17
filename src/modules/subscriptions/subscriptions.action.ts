@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { isBillingDateOnAnchor } from '../../common/billing-date';
 import type { CreateSubscriptionRequest } from './subscriptions.dto';
 import {
     InvalidBillingAnchorException,
     InvalidSubscriptionDatesException,
 } from './subscriptions.errors';
+import { daysInMonth } from '../../common/billing-date';
 
 @Injectable()
 export class SubscriptionsAction {
@@ -24,4 +24,18 @@ export class SubscriptionsAction {
             throw new InvalidBillingAnchorException();
         }
     }
+}
+
+/** Checks whether a calendar date matches the preserved monthly billing anchor. */
+export function isBillingDateOnAnchor(
+    date: string,
+    anchorDay: number,
+    isMonthEnd: boolean,
+): boolean {
+    const [year, month, day] = date.split('-').map(Number);
+    const monthEnd = daysInMonth(year, month);
+
+    return isMonthEnd
+        ? day === monthEnd
+        : day === Math.min(anchorDay, monthEnd);
 }
