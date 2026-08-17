@@ -1,0 +1,61 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { AppConfigService } from '../config/app-config.service';
+import { Clock } from './clock';
+import { RequestContext } from './request-context';
+
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogValue = string | number | boolean | null | undefined;
+export type LogFields = Record<string, LogValue>;
+
+const SENSITIVE_LOG_KEY =
+    /authorization|cookie|password|secret|token|database[_-]?url|connection[_-]?string/i;
+
+/** Emits structured logs with stable application and request correlation fields. */
+@Injectable()
+export class AppLogger {
+    private readonly logger = new Logger('Application');
+
+    constructor(
+        private readonly config: AppConfigService,
+        private readonly clock: Clock,
+        private readonly context: RequestContext,
+    ) {}
+
+    debug(event: string, fields: LogFields = {}): void {
+        this.logger.debug(this.entry('debug', event, fields));
+    }
+
+    info(event: string, fields: LogFields = {}): void {
+        this.logger.log(this.entry('info', event, fields));
+    }
+
+    warn(event: string, fields: LogFields = {}): void {
+        this.logger.warn(this.entry('warn', event, fields));
+    }
+
+    error(event: string, fields: LogFields = {}): void {
+        this.logger.error(this.entry('error', event, fields));
+    }
+
+    private entry(level: LogLevel, event: string, fields: LogFields) {
+        return {
+            ...redact(fields),
+            timestamp: this.clock.now().toISOString(),
+            level,
+            event,
+            ...(this.context.requestId
+                ? { requestId: this.context.requestId }
+                : {}),
+            instanceId: this.config.app.instanceId,
+        };
+    }
+}
+
+function redact(fields: LogFields): LogFields {
+    return Object.fromEntries(
+        Object.entries(fields).map(([key, value]) => [
+            key,
+            SENSITIVE_LOG_KEY.test(key) ? '[REDACTED]' : value,
+        ]),
+    );
+}
