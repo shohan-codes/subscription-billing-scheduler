@@ -64,7 +64,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
         .addColumn('status', 'varchar(20)', (column) => column.notNull())
         .addColumn('billing_state', 'varchar(20)', (column) => column.notNull())
         .addColumn('currency', 'char(3)', (column) => column.notNull())
-        .addColumn('amount', 'numeric(19,4)', (column) => column.notNull())
+        .addColumn('amount', sql`numeric(19, 4)`, (column) => column.notNull())
         .addColumn('start_date', 'date', (column) => column.notNull())
         .addColumn('next_billing_date', 'date', (column) => column.notNull())
         .addColumn('billing_anchor_day', 'smallint', (column) => column.notNull())
@@ -148,14 +148,14 @@ export async function up(db: Kysely<unknown>): Promise<void> {
         .addColumn('issue_date', 'date', (column) => column.notNull())
         .addColumn('status', 'varchar(20)', (column) => column.notNull())
         .addColumn('currency', 'char(3)', (column) => column.notNull())
-        .addColumn('subtotal', 'numeric(19,4)', (column) => column.notNull())
-        .addColumn('tax_total', 'numeric(19,4)', (column) =>
+        .addColumn('subtotal', sql`numeric(19, 4)`, (column) => column.notNull())
+        .addColumn('tax_total', sql`numeric(19, 4)`, (column) =>
             column.notNull().defaultTo(0),
         )
-        .addColumn('discount_total', 'numeric(19,4)', (column) =>
+        .addColumn('discount_total', sql`numeric(19, 4)`, (column) =>
             column.notNull().defaultTo(0),
         )
-        .addColumn('total', 'numeric(19,4)', (column) => column.notNull())
+        .addColumn('total', sql`numeric(19, 4)`, (column) => column.notNull())
         .addColumn('idempotency_key', 'varchar(180)', (column) =>
             column.notNull(),
         )
@@ -194,11 +194,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
             column.notNull().references('invoices.id'),
         )
         .addColumn('description', 'varchar(255)', (column) => column.notNull())
-        .addColumn('quantity', 'numeric(12,4)', (column) =>
+        .addColumn('quantity', sql`numeric(12, 4)`, (column) =>
             column.notNull().defaultTo(1),
         )
-        .addColumn('unit_price', 'numeric(19,4)', (column) => column.notNull())
-        .addColumn('line_total', 'numeric(19,4)', (column) => column.notNull())
+        .addColumn('unit_price', sql`numeric(19, 4)`, (column) => column.notNull())
+        .addColumn('line_total', sql`numeric(19, 4)`, (column) => column.notNull())
         .addColumn('created_at', 'timestamptz', (column) =>
             column.notNull().defaultTo(sql`now()`),
         )
