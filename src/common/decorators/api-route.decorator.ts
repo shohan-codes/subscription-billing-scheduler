@@ -66,9 +66,7 @@ export const ApiRoute = ({
     }
     if (conflict) decorators.push(apiErrorResponse(409, 'Conflict'));
     if (unprocessable) {
-        decorators.push(
-            apiErrorResponse(422, 'Business validation failed'),
-        );
+        decorators.push(apiErrorResponse(422, 'Business validation failed'));
     }
 
     decorators.push(

@@ -20,7 +20,9 @@ describe('SubscriptionsAction', () => {
     const action = new SubscriptionsAction();
 
     it('accepts valid cross-field creation rules', () => {
-        expect(() => action.validateCreateOrThrow(validRequest())).not.toThrow();
+        expect(() =>
+            action.validateCreateOrThrow(validRequest()),
+        ).not.toThrow();
     });
 
     it('rejects a first billing date before the start date', () => {
