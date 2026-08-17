@@ -7,9 +7,9 @@ import {
 import { Kysely, PostgresDialect } from 'kysely';
 import { Pool } from 'pg';
 import { AppConfigService } from '../config/app-config.service';
+import type { DatabaseSchema } from './database.types';
 
 export const DATABASE = Symbol('DATABASE');
-export type DatabaseSchema = Record<never, never>;
 export type DatabaseClient = Kysely<DatabaseSchema>;
 
 @Injectable()
