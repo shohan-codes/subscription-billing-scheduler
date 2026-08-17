@@ -14,7 +14,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     /** Converts HTTP failures to the safe API error envelope. */
     catch(exception: unknown, host: ArgumentsHost): void {
-        const response = host.switchToHttp().getResponse();
+        const response = host.switchToHttp().getResponse<unknown>();
         const error = resolveApiError(exception);
         const body = {
             code: error.code,

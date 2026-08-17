@@ -1,3 +1,4 @@
+import type { Server } from 'node:http';
 import {
     BadRequestException,
     Controller,
@@ -51,7 +52,7 @@ class TestModule implements NestModule {
 }
 
 describe('common HTTP foundation', () => {
-    let app: INestApplication;
+    let app: INestApplication<Server>;
 
     beforeAll(async () => {
         const module = await Test.createTestingModule({
