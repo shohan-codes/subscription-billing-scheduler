@@ -11,7 +11,9 @@ describe('CursorPaginationRequest', () => {
     });
 
     it('rejects page sizes above the shared limit', async () => {
-        const request = plainToInstance(CursorPaginationRequest, { limit: 101 });
+        const request = plainToInstance(CursorPaginationRequest, {
+            limit: 101,
+        });
 
         expect(await validate(request)).not.toHaveLength(0);
     });

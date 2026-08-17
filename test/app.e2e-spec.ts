@@ -1,3 +1,4 @@
+import type { Server } from 'node:http';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -7,7 +8,7 @@ process.env.DATABASE_URL ??=
     'postgresql://billing:billing@localhost:5432/subscription_billing';
 
 describe('App (e2e)', () => {
-    let app: INestApplication;
+    let app: INestApplication<Server>;
 
     beforeEach(async () => {
         const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -23,7 +24,6 @@ describe('App (e2e)', () => {
     });
 
     it('/health/live (GET)', () =>
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         request(app.getHttpServer())
             .get('/health/live')
             .expect(200)

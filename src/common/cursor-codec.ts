@@ -3,16 +3,15 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 const MAX_CURSOR_LENGTH = 512;
 const BASE64URL = /^[A-Za-z0-9_-]+$/;
 
-export type CursorPayload = Record<
-    string,
-    string | number | boolean | null
->;
+export type CursorPayload = Record<string, string | number | boolean | null>;
 
 /** Encodes and validates opaque pagination cursors. */
 @Injectable()
 export class CursorCodec {
     encode(payload: CursorPayload): string {
-        const cursor = Buffer.from(JSON.stringify(payload)).toString('base64url');
+        const cursor = Buffer.from(JSON.stringify(payload)).toString(
+            'base64url',
+        );
 
         if (cursor.length > MAX_CURSOR_LENGTH) {
             throw new Error('Cursor payload is too large');
