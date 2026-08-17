@@ -17,6 +17,7 @@ export type ApiRouteOptions = {
     auth?: boolean;
     notFound?: boolean;
     conflict?: boolean;
+    unprocessable?: boolean;
     responseType?: Type<unknown>;
     responseIsArray?: boolean;
     dataSchema?: OpenApiSchema;
@@ -30,6 +31,7 @@ export const ApiRoute = ({
     auth = true,
     notFound = false,
     conflict = false,
+    unprocessable = false,
     responseType,
     responseIsArray = false,
     dataSchema,
@@ -63,6 +65,11 @@ export const ApiRoute = ({
         decorators.push(apiErrorResponse(404, 'Resource not found'));
     }
     if (conflict) decorators.push(apiErrorResponse(409, 'Conflict'));
+    if (unprocessable) {
+        decorators.push(
+            apiErrorResponse(422, 'Business validation failed'),
+        );
+    }
 
     decorators.push(
         apiErrorResponse(429, 'Too many requests'),
