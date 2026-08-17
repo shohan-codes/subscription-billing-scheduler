@@ -6,7 +6,7 @@ services:
             POSTGRES_USER: billing
             POSTGRES_PASSWORD: billing
         ports:
-            - '5432:5432'
+            - '${POSTGRES_PORT:-5432}:5432'
         healthcheck:
             test: ['CMD-SHELL', 'pg_isready -U billing -d subscription_billing']
             interval: 5s
