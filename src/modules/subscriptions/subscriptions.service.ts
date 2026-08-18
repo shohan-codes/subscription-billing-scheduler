@@ -5,6 +5,8 @@ import { CursorCodec } from '../../common/cursor-codec';
 import { SubscriptionsAction } from './subscriptions.action';
 import { SUBSCRIPTION_DATE_PATTERN } from './subscriptions.constant';
 import {
+    BillingRetrySubscriptionRequest,
+    BillingRetrySubscriptionResponse,
     CancelSubscriptionResponse,
     CreateSubscriptionRequest,
     CreateSubscriptionResponse,
@@ -59,6 +61,21 @@ export class SubscriptionsService {
         );
 
         return UpdateSubscriptionResponse.from(subscription);
+    }
+
+    /** Clears retry delay or explicitly unblocks a corrected subscription. */
+    async billingRetry(
+        id: string,
+        request: BillingRetrySubscriptionRequest,
+    ): Promise<BillingRetrySubscriptionResponse> {
+        const current = await this.repository.findByIdOrThrow(id);
+        this.action.validateBillingRetryOrThrow(current, request);
+        const subscription = await this.repository.recoverBillingStateOrThrow(
+            id,
+            current.billing_state,
+        );
+
+        return BillingRetrySubscriptionResponse.from(subscription);
     }
 
     /** Pauses an active subscription without changing its next billing date. */

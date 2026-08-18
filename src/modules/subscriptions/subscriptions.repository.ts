@@ -11,6 +11,7 @@ import type {
     UpdateSubscriptionRequest,
 } from './subscriptions.dto';
 import {
+    SubscriptionBillingRecoveryConflictException,
     SubscriptionNotFoundException,
     SubscriptionStateConflictException,
     SubscriptionVersionConflictException,
@@ -112,6 +113,31 @@ export class SubscriptionsRepository {
             .executeTakeFirst();
 
         if (!subscription) throw new SubscriptionStateConflictException();
+        return subscription;
+    }
+
+    /** Clears a retry or blocked billing state only when the previously read state is unchanged. */
+    async recoverBillingStateOrThrow(
+        id: string,
+        expectedState: SubscriptionBillingState,
+    ): Promise<SubscriptionRecord> {
+        const subscription = await this.database
+            .updateTable('subscriptions')
+            .set({
+                billing_state: SubscriptionBillingState.Ready,
+                billing_retry_at: null,
+                version: sql<number>`version + 1`,
+            })
+            .where('id', '=', id)
+            .where('billing_state', '=', expectedState)
+            .returningAll()
+            .executeTakeFirst();
+
+        if (!subscription) {
+            throw new SubscriptionBillingRecoveryConflictException(
+                'Subscription billing state changed before recovery completed',
+            );
+        }
         return subscription;
     }
 

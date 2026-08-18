@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { daysInMonth } from '../../common/billing-date';
-import { SubscriptionStatus } from './subscriptions.constant';
+import {
+    SubscriptionBillingState,
+    SubscriptionStatus,
+} from './subscriptions.constant';
 import type {
+    BillingRetrySubscriptionRequest,
     CreateSubscriptionRequest,
     UpdateSubscriptionRequest,
 } from './subscriptions.dto';
@@ -10,8 +14,10 @@ import {
     InvalidBillingAnchorException,
     InvalidSubscriptionDatesException,
     InvalidSubscriptionStateException,
+    SubscriptionBillingRecoveryConflictException,
     SubscriptionProcessingClaimActiveException,
     SubscriptionStateConflictException,
+    SubscriptionUnblockRequiredException,
     SubscriptionVersionConflictException,
 } from './subscriptions.errors';
 import type { SubscriptionRecord } from './subscriptions.types';
@@ -63,6 +69,29 @@ export class SubscriptionsAction {
         }
 
         return SubscriptionStatus.Canceled;
+    }
+
+    /** Validates whether an operator may clear the current billing failure state. */
+    validateBillingRetryOrThrow(
+        current: SubscriptionRecord,
+        request: BillingRetrySubscriptionRequest,
+    ): void {
+        if (current.status === SubscriptionStatus.Canceled) {
+            throw new SubscriptionBillingRecoveryConflictException(
+                'Canceled subscription cannot be returned to billing',
+            );
+        }
+        if (current.billing_state === SubscriptionBillingState.Ready) {
+            throw new SubscriptionBillingRecoveryConflictException(
+                'Subscription billing state is already ready',
+            );
+        }
+        if (
+            current.billing_state === SubscriptionBillingState.Blocked &&
+            request.unblock !== true
+        ) {
+            throw new SubscriptionUnblockRequiredException();
+        }
     }
 
     /** Validates a controlled subscription update and returns whether its schedule changes. */

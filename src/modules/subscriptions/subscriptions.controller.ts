@@ -8,9 +8,13 @@ import {
     Patch,
     Post,
     Query,
+    UseGuards,
 } from '@nestjs/common';
 import { ApiRoute } from '../../common/decorators/api-route.decorator';
+import { OperatorGuard } from '../../common/operator.guard';
 import {
+    BillingRetrySubscriptionRequest,
+    BillingRetrySubscriptionResponse,
     CreateSubscriptionRequest,
     CreateSubscriptionResponse,
     GetSubscriptionRequest,
@@ -57,6 +61,23 @@ export class SubscriptionsController {
         @Body() request: UpdateSubscriptionRequest,
     ): Promise<UpdateSubscriptionResponse> {
         return this.service.update(params.id, request);
+    }
+
+    @Post(':id/billing-retry')
+    @HttpCode(HttpStatus.ACCEPTED)
+    @UseGuards(OperatorGuard)
+    @ApiRoute({
+        summary: 'Request subscription billing retry',
+        status: HttpStatus.ACCEPTED,
+        notFound: true,
+        conflict: true,
+        responseType: BillingRetrySubscriptionResponse,
+    })
+    billingRetry(
+        @Param() params: GetSubscriptionRequest,
+        @Body() request: BillingRetrySubscriptionRequest,
+    ): Promise<BillingRetrySubscriptionResponse> {
+        return this.service.billingRetry(params.id, request);
     }
 
     @Post(':id/pause')

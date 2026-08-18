@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 
 type RequestContextStore = {
     requestId: string;
+    actorId?: string;
 };
 
 /** Keeps HTTP correlation data available throughout the current async call chain. */
@@ -16,5 +17,14 @@ export class RequestContext {
 
     get requestId(): string | undefined {
         return this.storage.getStore()?.requestId;
+    }
+
+    setActorId(actorId: string): void {
+        const store = this.storage.getStore();
+        if (store) store.actorId = actorId;
+    }
+
+    get actorId(): string | undefined {
+        return this.storage.getStore()?.actorId;
     }
 }
