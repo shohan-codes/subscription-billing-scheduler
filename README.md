@@ -1,10 +1,10 @@
 # Subscription Billing Scheduler
 
-NestJS service for the Phase 2 Subscription Billing Scheduler project. Milestone 2 now includes the subscription domain; invoice transactions and scheduler execution remain later milestones.
+NestJS service for the Phase 2 Subscription Billing Scheduler project. Milestone 3 now includes invoice persistence, transactional generation, and duplicate-safe billing obligations; scheduler execution remains a later milestone.
 
 Agent context and repository conventions: `agent.md`.
 
-## Included foundation and subscription domain
+## Included foundation, subscription domain, and invoice transaction
 
 - NestJS 11 application bootstrap
 - validated environment configuration
@@ -25,10 +25,14 @@ Agent context and repository conventions: `agent.md`.
 - subscription creation, retrieval, listing, controlled update, pause, resume, and cancellation
 - operator-authorized billing retry and explicit unblock recovery
 - deterministic monthly recurrence calculation with preserved billing anchors
+- invoice listing and detail APIs with immutable financial and line-item snapshots
+- atomic claimed-subscription invoice generation with schedule advancement and run-item audit
+- stable invoice idempotency keys with duplicate confirmation and permanent conflict protection
 
 ## Endpoint flowcharts
 
 - Subscription module: `src/modules/subscriptions/flowchart.md`
+- Invoice module: `src/modules/invoices/flowchart.md`
 - Health module: `src/health/flowchart.md`
 
 ## Local setup
@@ -89,4 +93,4 @@ Migration files belong in `src/database/migrations` and should use Kysely schema
 
 ## Scope boundary
 
-Milestone 2 owns subscription-domain behavior and recurrence rules. Invoice creation, scheduler leases, claiming, batching, automatic failure classification, catch-up execution, and billing-run history remain later milestones.
+Milestone 3 owns invoice read models, immutable snapshots, atomic invoice generation, schedule advancement, and duplicate protection. Scheduler leases, batch claiming, automatic failure classification, catch-up coordination, and billing-run history remain later milestones.
