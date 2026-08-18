@@ -150,7 +150,7 @@ export class SubscriptionsAction {
 }
 
 /** Checks whether a calendar date matches the preserved monthly billing anchor. */
-export function isBillingDateOnAnchor(
+function isBillingDateOnAnchor(
     date: string,
     anchorDay: number,
     isMonthEnd: boolean,
