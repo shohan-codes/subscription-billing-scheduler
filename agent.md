@@ -28,11 +28,13 @@
 
 ### Endpoint flowcharts : document each module's HTTP flow
 
-- `Location`: Keep endpoint flowcharts under `docs/modules/<module>/flowchart.md`.
+- `Location`: Keep `flowchart.md` inside the module that owns the endpoints, beside its module source files.
 - `Index`: Start each flowchart document with an index that links to every endpoint section in the module.
 - `Coverage`: Include one Mermaid flowchart for every endpoint exposed by the module.
-- `Layers`: Show request validation, controller, service orchestration, action/business decisions, repository/database access, and response or error flow when those layers apply.
-- `Mermaid`: Prefer conservative `flowchart TD` syntax and simple subgraphs so repository renderers remain compatible.
+- `Structure`: Follow the established numbered-subgraph convention: request, field-level DTO validation, validation result, service flow, business decisions, repository/database flow, response mapping, success response, and error response when those layers apply.
+- `Validation`: Give each request field its own validation tree with local `VALID` and `INVALID` nodes; converge valid fields directly into `All field validations passed` and invalid fields directly into the validation error.
+- `Mermaid`: Use conservative `flowchart TD` syntax and simple subgraphs so repository renderers remain compatible.
+- `Comments`: Do not add Mermaid `%%` comments inside endpoint flowcharts.
 
 ## Configuration convention
 
@@ -59,6 +61,7 @@ src/modules/<feature>/
 ├── <feature>.constant.ts   # only if needed
 ├── <feature>.types.ts      # only if needed
 ├── <feature>.errors.ts
+├── flowchart.md
 └── test/
     └── *.spec.ts
 ```

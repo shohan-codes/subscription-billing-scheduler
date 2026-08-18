@@ -1,10 +1,10 @@
 # Subscription Billing Scheduler
 
-Foundation-only NestJS service for the Phase 2 Subscription Billing Scheduler project. Billing/subscription/invoice features are intentionally not implemented yet.
+NestJS service for the Phase 2 Subscription Billing Scheduler project. Milestone 2 now includes the subscription domain; invoice transactions and scheduler execution remain later milestones.
 
 Agent context and repository conventions: `agent.md`.
 
-## Included foundation
+## Included foundation and subscription domain
 
 - NestJS 11 application bootstrap
 - validated environment configuration
@@ -22,6 +22,14 @@ Agent context and repository conventions: `agent.md`.
 - Helmet security headers
 - graceful database shutdown
 - Docker Compose PostgreSQL
+- subscription creation, retrieval, listing, controlled update, pause, resume, and cancellation
+- operator-authorized billing retry and explicit unblock recovery
+- deterministic monthly recurrence calculation with preserved billing anchors
+
+## Endpoint flowcharts
+
+- Subscription module: `src/modules/subscriptions/flowchart.md`
+- Health module: `src/health/flowchart.md`
 
 ## Local setup
 
@@ -49,6 +57,8 @@ constructor(private readonly config: AppConfigService) {}
 this.config.app.port
 this.config.database.url
 this.config.swagger.enabled
+this.config.operator.id
+this.config.operator.token
 this.config.billing.timezone
 ```
 
@@ -79,4 +89,4 @@ Migration files belong in `src/database/migrations` and should use Kysely schema
 
 ## Scope boundary
 
-This baseline deliberately contains no subscription, invoice, lease, claiming, retry, or billing-run business logic. Those belong to later feature milestones.
+Milestone 2 owns subscription-domain behavior and recurrence rules. Invoice creation, scheduler leases, claiming, batching, automatic failure classification, catch-up execution, and billing-run history remain later milestones.
