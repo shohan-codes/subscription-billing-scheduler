@@ -4,6 +4,7 @@ import { CommonModule } from './common/common.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { AppConfigModule } from './config/app-config.module';
 import { HealthModule } from './health/health.module';
+import { BillingSchedulerModule } from './modules/billing-scheduler/billing-scheduler.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 
@@ -15,6 +16,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
         HealthModule,
         SubscriptionsModule,
         InvoicesModule,
+        BillingSchedulerModule,
     ],
 })
 export class AppModule implements NestModule {

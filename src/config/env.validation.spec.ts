@@ -53,6 +53,15 @@ describe('validateEnvironment', () => {
         ).toThrow('less than one-third');
     });
 
+    it('rejects an invalid cron expression', () => {
+        expect(() =>
+            validateEnvironment({
+                ...valid,
+                BILLING_CRON_EXPRESSION: 'not-a-cron',
+            }),
+        ).toThrow('not a valid cron expression');
+    });
+
     it('rejects an invalid timezone', () => {
         expect(() =>
             validateEnvironment({
