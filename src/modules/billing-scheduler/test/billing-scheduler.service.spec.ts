@@ -1,15 +1,21 @@
 import type { AppLogger } from '../../../common/app-logger';
-import type { Clock } from '../../../common/clock';
+import type { CursorCodec } from '../../../common/utils/cursor-codec';
 import type { AppConfigService } from '../../../config/app-config.service';
-import { BillingSchedulerService } from '../billing-scheduler.service';
+import { SchedulerRunStatus } from '../billing-scheduler.constant';
 import type { BillingSchedulerHeartbeat } from '../billing-scheduler.heartbeat';
 import type { BillingSchedulerRepository } from '../billing-scheduler.repository';
-import type { SchedulerLeaseRequest } from '../billing-scheduler.types';
+import { BillingSchedulerService } from '../billing-scheduler.service';
+import type {
+    SchedulerLeaseRequest,
+    SchedulerRunInsert,
+    SchedulerRunRecord,
+} from '../billing-scheduler.types';
 
+const triggeredAt = new Date('2026-08-18T10:00:00.000Z');
 const request: SchedulerLeaseRequest = {
     lockName: 'billing.invoice.scheduler',
     ownerToken: 'instance-a:owner-a',
-    acquiredAt: new Date('2026-08-18T10:00:00.000Z'),
+    acquiredAt: triggeredAt,
     leaseExpiresAt: new Date('2026-08-18T10:02:00.000Z'),
 };
 
@@ -23,6 +29,20 @@ function createService(acquired: boolean) {
               }
             : undefined,
     );
+    const createRunOrThrow = jest
+        .fn()
+        .mockImplementation((insert: SchedulerRunInsert) =>
+            Promise.resolve({
+                ...insert,
+                id: insert.id,
+                created_at: triggeredAt,
+                updated_at: triggeredAt,
+            } as SchedulerRunRecord),
+        );
+    const finalizeRunOrThrow = jest.fn().mockResolvedValue({
+        id: 'run-a',
+        status: SchedulerRunStatus.Completed,
+    });
     const releaseLease = jest.fn().mockResolvedValue(true);
     const start = jest.fn();
     const stop = jest.fn();
@@ -30,14 +50,29 @@ function createService(acquired: boolean) {
     const service = new BillingSchedulerService(
         {
             app: { instanceId: 'instance-a' },
-            billing: { leaseSeconds: 120 },
+            billing: {
+                leaseSeconds: 120,
+                timezone: 'UTC',
+            },
         } as unknown as AppConfigService,
-        { now: jest.fn(() => request.acquiredAt) } as unknown as Clock,
+        {
+            now: jest.fn(() => triggeredAt),
+            dateInTimeZone: jest.fn(() => '2026-08-18'),
+        },
         {
             createLeaseRequest: jest.fn(() => request),
+            resolveCompletedStatus: jest.fn(() => SchedulerRunStatus.Completed),
+            resolveSafeRunFailure: jest.fn(() => ({
+                code: 'SCHEDULER_RUN_FAILED',
+                message: 'Billing run failed unexpectedly',
+            })),
+            validateManualRunOrThrow: jest.fn(),
         },
         {
             acquireLease,
+            createRunOrThrow,
+            finalizeRunOrThrow,
+            finalizeRun: jest.fn(),
             releaseLease,
         } as unknown as BillingSchedulerRepository,
         {
@@ -45,31 +80,70 @@ function createService(acquired: boolean) {
             stop,
             isLeaseLost: false,
         } as unknown as BillingSchedulerHeartbeat,
-        { info } as unknown as AppLogger,
+        {} as CursorCodec,
+        { info, error: jest.fn() } as unknown as AppLogger,
     );
 
-    return { service, acquireLease, releaseLease, start, stop, info };
+    return {
+        service,
+        acquireLease,
+        createRunOrThrow,
+        finalizeRunOrThrow,
+        releaseLease,
+        start,
+        stop,
+        info,
+    };
 }
 
 describe('BillingSchedulerService', () => {
-    it('records lock contention without releasing an unowned lease', async () => {
-        const { service, releaseLease, info } = createService(false);
+    it('persists lock contention without releasing an unowned lease', async () => {
+        const { service, createRunOrThrow, releaseLease, info } =
+            createService(false);
 
         await service.triggerScheduled();
 
+        expect(createRunOrThrow).toHaveBeenCalledWith(
+            expect.objectContaining({
+                status: SchedulerRunStatus.SkippedLockUnavailable,
+                trigger_type: 'scheduled',
+                cutoff_date: '2026-08-18',
+            }),
+        );
         expect(releaseLease).not.toHaveBeenCalled();
-        expect(info).toHaveBeenCalledWith('billing.run.skipped', {
-            jobName: request.lockName,
-            result: 'skipped_lock_unavailable',
-        });
+        expect(info).toHaveBeenCalledWith(
+            'billing.run.skipped',
+            expect.objectContaining({
+                result: SchedulerRunStatus.SkippedLockUnavailable,
+            }),
+        );
     });
 
-    it('releases only the exact lease returned by acquisition', async () => {
-        const { service, acquireLease, releaseLease } = createService(true);
+    it('finalizes and releases only the exact acquired owner lease', async () => {
+        const {
+            service,
+            acquireLease,
+            finalizeRunOrThrow,
+            releaseLease,
+            start,
+            stop,
+        } = createService(true);
 
         await service.triggerScheduled();
 
         expect(acquireLease).toHaveBeenCalledWith(request);
+        expect(start).toHaveBeenCalledWith(
+            expect.objectContaining({
+                lockName: request.lockName,
+                ownerToken: request.ownerToken,
+            }),
+        );
+        expect(finalizeRunOrThrow).toHaveBeenCalledWith(
+            expect.any(String),
+            request.ownerToken,
+            expect.objectContaining({ status: SchedulerRunStatus.Completed }),
+        );
+        expect(stop).toHaveBeenCalled();
         expect(releaseLease).toHaveBeenCalledWith(
             request.lockName,
             request.ownerToken,

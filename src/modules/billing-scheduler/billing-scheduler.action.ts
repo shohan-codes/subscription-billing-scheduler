@@ -1,7 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import { BILLING_SCHEDULER_JOB_NAME } from './billing-scheduler.constant';
-import type { SchedulerLeaseRequest } from './billing-scheduler.types';
+import {
+    BILLING_SCHEDULER_JOB_NAME,
+    SchedulerRunStatus,
+} from './billing-scheduler.constant';
+import { SchedulerLeaseUnavailableException } from './billing-scheduler.errors';
+import type {
+    SchedulerLeaseRequest,
+    SchedulerRunCounters,
+    SchedulerRunFailure,
+    SchedulerRunRecord,
+} from './billing-scheduler.types';
 
 @Injectable()
 export class BillingSchedulerAction {
@@ -16,6 +25,29 @@ export class BillingSchedulerAction {
             ownerToken: `${instanceId}:${randomUUID()}`,
             acquiredAt: now,
             leaseExpiresAt: new Date(now.getTime() + leaseSeconds * 1000),
+        };
+    }
+
+    /** Rejects a manual trigger when another coordinator already owns the lease. */
+    validateManualRunOrThrow(run: SchedulerRunRecord): void {
+        if (run.status === SchedulerRunStatus.SkippedLockUnavailable) {
+            throw new SchedulerLeaseUnavailableException();
+        }
+    }
+
+    /** Resolves the terminal success status from accumulated run counters. */
+    resolveCompletedStatus(counters: SchedulerRunCounters): SchedulerRunStatus {
+        return counters.failedCount > 0
+            ? SchedulerRunStatus.CompletedWithErrors
+            : SchedulerRunStatus.Completed;
+    }
+
+    /** Builds a safe top-level failure summary without exposing internal error details. */
+    resolveSafeRunFailure(error: unknown): SchedulerRunFailure {
+        void error;
+        return {
+            code: 'SCHEDULER_RUN_FAILED',
+            message: 'Billing run failed unexpectedly',
         };
     }
 }
