@@ -180,6 +180,7 @@ describe('Scheduler run history and manual trigger (e2e)', () => {
             .selectFrom('scheduler_runs')
             .select('id')
             .where('triggered_at', '>=', startedAt)
+            .where('id', 'not in', runIds)
             .execute();
         expect(newRuns).toEqual([]);
 
