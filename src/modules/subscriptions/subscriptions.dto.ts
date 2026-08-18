@@ -12,6 +12,7 @@ import {
     Max,
     MaxLength,
     Min,
+    ValidateIf,
 } from 'class-validator';
 import { ApiResponseField } from '../../common/decorators/api-response-field.decorator';
 import {
@@ -20,6 +21,8 @@ import {
 } from '../../common/dto/cursor-pagination.dto';
 import { ResponseDto } from '../../common/dto/response.dto';
 import {
+    SUBSCRIPTION_AMOUNT_PATTERN,
+    SUBSCRIPTION_CURRENCY_PATTERN,
     SUBSCRIPTION_DATE_PATTERN,
     SubscriptionBillingState,
     SubscriptionStatus,
@@ -36,9 +39,6 @@ const LatestInvoiceResponseField = ApiResponseField<InvoiceRecord>;
 const GetSubscriptionResponseField =
     ApiResponseField<SubscriptionWithLatestInvoice>;
 const ListSubscriptionsResponseField = ApiResponseField<SubscriptionListResult>;
-
-const AMOUNT_PATTERN = /^(?=.*[1-9])\d{1,15}(?:\.\d{1,4})?$/;
-const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 
 // ---------- Shared Subscription Response ----------
 
@@ -215,9 +215,12 @@ export class CreateSubscriptionRequest {
     @MaxLength(255)
     description!: string;
 
-    @ApiProperty({ example: '49.0000', pattern: AMOUNT_PATTERN.source })
+    @ApiProperty({
+        example: '49.0000',
+        pattern: SUBSCRIPTION_AMOUNT_PATTERN.source,
+    })
     @IsString()
-    @Matches(AMOUNT_PATTERN, {
+    @Matches(SUBSCRIPTION_AMOUNT_PATTERN, {
         message:
             'amount must be greater than zero with up to 15 integer and 4 fractional digits',
     })
@@ -227,10 +230,10 @@ export class CreateSubscriptionRequest {
         example: 'USD',
         minLength: 3,
         maxLength: 3,
-        pattern: CURRENCY_PATTERN.source,
+        pattern: SUBSCRIPTION_CURRENCY_PATTERN.source,
     })
     @IsString()
-    @Matches(CURRENCY_PATTERN, {
+    @Matches(SUBSCRIPTION_CURRENCY_PATTERN, {
         message: 'currency must be a three-letter uppercase code',
     })
     currency!: string;
@@ -271,6 +274,74 @@ export class CreateSubscriptionRequest {
 }
 
 export class CreateSubscriptionResponse extends SubscriptionResponse {}
+
+// ---------- Update Subscription ----------
+
+export class UpdateSubscriptionRequest {
+    @ApiPropertyOptional({ example: 'Pro Plan - Annual', maxLength: 255 })
+    @ValidateIf((_object, value: unknown) => value !== undefined)
+    @IsString()
+    @IsNotEmpty()
+    @MaxLength(255)
+    description?: string;
+
+    @ApiPropertyOptional({
+        example: '99.0000',
+        pattern: SUBSCRIPTION_AMOUNT_PATTERN.source,
+    })
+    @ValidateIf((_object, value: unknown) => value !== undefined)
+    @IsString()
+    @Matches(SUBSCRIPTION_AMOUNT_PATTERN, {
+        message:
+            'amount must be greater than zero with up to 15 integer and 4 fractional digits',
+    })
+    amount?: string;
+
+    @ApiPropertyOptional({
+        example: 'EUR',
+        minLength: 3,
+        maxLength: 3,
+        pattern: SUBSCRIPTION_CURRENCY_PATTERN.source,
+    })
+    @ValidateIf((_object, value: unknown) => value !== undefined)
+    @IsString()
+    @Matches(SUBSCRIPTION_CURRENCY_PATTERN, {
+        message: 'currency must be a three-letter uppercase code',
+    })
+    currency?: string;
+
+    @ApiPropertyOptional({
+        example: '2026-09-30',
+        format: 'date',
+        pattern: SUBSCRIPTION_DATE_PATTERN.source,
+    })
+    @ValidateIf((_object, value: unknown) => value !== undefined)
+    @IsString()
+    @Matches(SUBSCRIPTION_DATE_PATTERN, {
+        message: 'nextBillingDate must use YYYY-MM-DD format',
+    })
+    @IsISO8601({ strict: true })
+    nextBillingDate?: string;
+
+    @ApiPropertyOptional({ example: 30, minimum: 1, maximum: 31 })
+    @ValidateIf((_object, value: unknown) => value !== undefined)
+    @IsInt()
+    @Min(1)
+    @Max(31)
+    billingAnchorDay?: number;
+
+    @ApiPropertyOptional({ example: true })
+    @ValidateIf((_object, value: unknown) => value !== undefined)
+    @IsBoolean()
+    anchorIsMonthEnd?: boolean;
+
+    @ApiProperty({ example: 1, minimum: 1 })
+    @IsInt()
+    @Min(1)
+    version!: number;
+}
+
+export class UpdateSubscriptionResponse extends SubscriptionResponse {}
 
 // ---------- Get Subscription ----------
 

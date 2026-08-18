@@ -1,12 +1,19 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import { sql } from 'kysely';
 import { DATABASE, type DatabaseClient } from '../../database/database.module';
 import {
     SubscriptionBillingState,
     SubscriptionStatus,
 } from './subscriptions.constant';
-import type { CreateSubscriptionRequest } from './subscriptions.dto';
-import { SubscriptionNotFoundException } from './subscriptions.errors';
+import type {
+    CreateSubscriptionRequest,
+    UpdateSubscriptionRequest,
+} from './subscriptions.dto';
+import {
+    SubscriptionNotFoundException,
+    SubscriptionVersionConflictException,
+} from './subscriptions.errors';
 import type {
     InvoiceRecord,
     SubscriptionListQuery,
@@ -38,6 +45,52 @@ export class SubscriptionsRepository {
             })
             .returningAll()
             .executeTakeFirstOrThrow();
+    }
+
+    /** Updates a subscription only when its version and processing claim still permit it. */
+    async updateOrThrow(
+        id: string,
+        request: UpdateSubscriptionRequest,
+        scheduleChanged: boolean,
+        now: Date,
+    ): Promise<SubscriptionRecord> {
+        let statement = this.database
+            .updateTable('subscriptions')
+            .set({
+                ...(request.description !== undefined && {
+                    description: request.description,
+                }),
+                ...(request.amount !== undefined && { amount: request.amount }),
+                ...(request.currency !== undefined && {
+                    currency: request.currency,
+                }),
+                ...(request.nextBillingDate !== undefined && {
+                    next_billing_date: request.nextBillingDate,
+                }),
+                ...(request.billingAnchorDay !== undefined && {
+                    billing_anchor_day: request.billingAnchorDay,
+                }),
+                ...(request.anchorIsMonthEnd !== undefined && {
+                    anchor_is_month_end: request.anchorIsMonthEnd,
+                }),
+                version: sql<number>`version + 1`,
+            })
+            .where('id', '=', id)
+            .where('version', '=', request.version);
+
+        if (scheduleChanged) {
+            statement = statement.where((eb) =>
+                eb.or([
+                    eb('processing_expires_at', 'is', null),
+                    eb('processing_expires_at', '<=', now),
+                ]),
+            );
+        }
+
+        const subscription = await statement.returningAll().executeTakeFirst();
+
+        if (!subscription) throw new SubscriptionVersionConflictException();
+        return subscription;
     }
 
     /** Finds a subscription by ID or throws when missing. */

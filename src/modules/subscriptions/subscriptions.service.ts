@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { isUUID } from 'class-validator';
+import { Clock } from '../../common/clock';
 import { CursorCodec } from '../../common/cursor-codec';
 import { SubscriptionsAction } from './subscriptions.action';
 import { SUBSCRIPTION_DATE_PATTERN } from './subscriptions.constant';
@@ -10,6 +11,8 @@ import {
     GetSubscriptionResponse,
     ListSubscriptionsRequest,
     ListSubscriptionsResponse,
+    UpdateSubscriptionRequest,
+    UpdateSubscriptionResponse,
 } from './subscriptions.dto';
 import { SubscriptionsRepository } from './subscriptions.repository';
 import type { SubscriptionListCursor } from './subscriptions.types';
@@ -20,6 +23,7 @@ export class SubscriptionsService {
         private readonly action: SubscriptionsAction,
         private readonly repository: SubscriptionsRepository,
         private readonly cursorCodec: CursorCodec,
+        private readonly clock: Clock,
     ) {}
 
     /** Creates a subscription after validating business rules. */
@@ -30,6 +34,28 @@ export class SubscriptionsService {
         const subscription = await this.repository.createOrThrow(request);
 
         return CreateSubscriptionResponse.from(subscription);
+    }
+
+    /** Updates allowed subscription fields using optimistic concurrency. */
+    async update(
+        id: string,
+        request: UpdateSubscriptionRequest,
+    ): Promise<UpdateSubscriptionResponse> {
+        const current = await this.repository.findByIdOrThrow(id);
+        const now = this.clock.now();
+        const scheduleChanged = this.action.validateUpdateOrThrow(
+            current,
+            request,
+            now,
+        );
+        const subscription = await this.repository.updateOrThrow(
+            id,
+            request,
+            scheduleChanged,
+            now,
+        );
+
+        return UpdateSubscriptionResponse.from(subscription);
     }
 
     /** Retrieves a subscription with its latest invoice summary. */
