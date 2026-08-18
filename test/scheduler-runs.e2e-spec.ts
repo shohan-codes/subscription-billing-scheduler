@@ -179,8 +179,8 @@ describe('Scheduler run history and manual trigger (e2e)', () => {
         const newRuns = await database
             .selectFrom('scheduler_runs')
             .select('id')
+            .where('instance_id', '=', app.get(AppConfigService).app.instanceId)
             .where('triggered_at', '>=', startedAt)
-            .where('id', 'not in', runIds)
             .execute();
         expect(newRuns).toEqual([]);
 
