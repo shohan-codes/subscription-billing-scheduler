@@ -4,6 +4,7 @@ import type {
     SchedulerLocksTable,
     SchedulerRunItemsTable,
     SchedulerRunsTable,
+    SubscriptionsTable,
 } from '../../database/database.types';
 import type {
     SchedulerRunItemResult,
@@ -15,12 +16,19 @@ export type SchedulerLeaseRecord = Selectable<SchedulerLocksTable>;
 export type SchedulerRunRecord = Selectable<SchedulerRunsTable>;
 export type SchedulerRunItemRecord = Selectable<SchedulerRunItemsTable>;
 export type SchedulerRunInsert = Insertable<SchedulerRunsTable>;
+export type DueSubscriptionRecord = Selectable<SubscriptionsTable>;
 
 export interface SchedulerLeaseRequest {
     lockName: string;
     ownerToken: string;
     acquiredAt: Date;
     leaseExpiresAt: Date;
+}
+
+export interface DueSubscriptionBatchQuery {
+    cutoffDate: string;
+    now: Date;
+    limit: number;
 }
 
 export interface SchedulerHeartbeatContext {
