@@ -39,7 +39,8 @@ export class InvoicePeriodConflictException extends ConflictException {
     constructor() {
         super({
             code: InvoiceErrorCode.PeriodConflict,
-            message: 'Existing invoice does not match the expected billing obligation',
+            message:
+                'Existing invoice does not match the expected billing obligation',
         });
     }
 }
