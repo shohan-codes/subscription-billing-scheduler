@@ -29,7 +29,10 @@ export class InvoicesService {
     /** Lists invoice snapshots using filters and cursor pagination. */
     async list(request: ListInvoicesRequest): Promise<ListInvoicesResponse> {
         const cursor = request.cursor
-            ? this.cursorCodec.decodeOrThrow(request.cursor, isInvoiceListCursor)
+            ? this.cursorCodec.decodeOrThrow(
+                  request.cursor,
+                  isInvoiceListCursor,
+              )
             : undefined;
         const rows = await this.repository.list({
             subscriptionId: request.subscriptionId,

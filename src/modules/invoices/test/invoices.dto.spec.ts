@@ -25,7 +25,9 @@ describe('ListInvoicesRequest', () => {
         ['issueDate', { issueDate: '2026-13-01' }],
         ['limit', { limit: 101 }],
     ] as const)('rejects invalid %s values', async (property, values) => {
-        const errors = await validate(Object.assign(validListRequest(), values));
+        const errors = await validate(
+            Object.assign(validListRequest(), values),
+        );
 
         expect(errors.some((error) => error.property === property)).toBe(true);
     });
