@@ -12,9 +12,11 @@ const context = {
 
 /** Builds heartbeat dependencies around a configurable lease-renewal result. */
 function createHeartbeat(renewed: boolean) {
-    const renewLease = jest.fn().mockResolvedValue(
-        renewed ? { lock_name: context.lockName } : undefined,
-    );
+    const renewLease = jest
+        .fn()
+        .mockResolvedValue(
+            renewed ? { lock_name: context.lockName } : undefined,
+        );
     const updateRunHeartbeat = jest.fn().mockResolvedValue(true);
     const warn = jest.fn();
     const heartbeat = new BillingSchedulerHeartbeat(

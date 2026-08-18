@@ -41,7 +41,6 @@ export class BillingSchedulerRepository {
             .executeTakeFirst();
     }
 
-
     /** Renews an unexpired scheduler lease only for its current owner. */
     renewLease(
         lockName: string,
