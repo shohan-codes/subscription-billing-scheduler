@@ -11,7 +11,6 @@ import { AppLogger } from '../app-logger';
 import { RequestContext } from '../request-context';
 
 const BEARER_PREFIX = 'Bearer ';
-// ponytail: static operator tokens cover this service boundary; replace with upstream identity/roles when available.
 
 /** Authorizes operator/admin requests and records the requesting actor. */
 @Injectable()
@@ -27,9 +26,15 @@ export class OperatorGuard implements CanActivate {
             .switchToHttp()
             .getRequest<IncomingMessage>();
         const token = bearerToken(request.headers.authorization);
-        const actorId = token ? this.findActorId(token) : undefined;
+        const actorId = this.config.operator.id;
+        const expectedToken = this.config.operator.token;
 
-        if (!actorId) {
+        if (
+            !actorId ||
+            !token ||
+            !expectedToken ||
+            !secureEqual(token, expectedToken)
+        ) {
             throw new UnauthorizedException({
                 code: 'OPERATOR_AUTH_REQUIRED',
                 message: 'Operator authorization is required',
@@ -39,12 +44,6 @@ export class OperatorGuard implements CanActivate {
         this.context.setActorId(actorId);
         this.logger.info('operator_authorized');
         return true;
-    }
-
-    private findActorId(token: string): string | undefined {
-        return Object.entries(this.config.operator.credentials).find(
-            ([, expectedToken]) => secureEqual(token, expectedToken),
-        )?.[0];
     }
 }
 

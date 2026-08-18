@@ -21,7 +21,8 @@ interface SwaggerConfiguration {
 }
 
 interface OperatorConfiguration {
-    readonly credentials: EnvironmentVariables['OPERATOR_CREDENTIALS'];
+    readonly id: EnvironmentVariables['OPERATOR_ID'];
+    readonly token: EnvironmentVariables['OPERATOR_TOKEN'];
 }
 
 interface BillingConfiguration {
@@ -77,7 +78,8 @@ export class AppConfigService {
         };
 
         this.operator = {
-            credentials: config.get('OPERATOR_CREDENTIALS', { infer: true }),
+            id: config.get('OPERATOR_ID', { infer: true }),
+            token: config.get('OPERATOR_TOKEN', { infer: true }),
         };
 
         this.billing = {

@@ -14,7 +14,7 @@ describe('OperatorGuard', () => {
     const logger = { info: logInfo } as unknown as AppLogger;
     const guard = new OperatorGuard(
         {
-            operator: { credentials: { 'operator-1': TOKEN } },
+            operator: { id: 'operator-1', token: TOKEN },
         } as unknown as AppConfigService,
         context,
         logger,

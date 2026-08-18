@@ -39,10 +39,10 @@ describe('Subscription billing retry (e2e)', () => {
         const moduleFixture: TestingModule = await Test.createTestingModule({
             imports: [AppModule],
         }).compile();
-        Object.assign(
-            moduleFixture.get(AppConfigService).operator.credentials,
-            { 'operator-test': OPERATOR_TOKEN },
-        );
+        Object.assign(moduleFixture.get(AppConfigService).operator, {
+            id: 'operator-test',
+            token: OPERATOR_TOKEN,
+        });
 
         app = moduleFixture.createNestApplication();
         app.useGlobalPipes(

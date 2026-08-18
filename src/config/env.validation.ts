@@ -14,7 +14,8 @@ export interface EnvironmentVariables {
     DATABASE_CONNECTION_TIMEOUT_MS: number;
     SWAGGER_ENABLED: boolean;
     SWAGGER_PATH: string;
-    OPERATOR_CREDENTIALS: Readonly<Record<string, string>>;
+    OPERATOR_ID?: string;
+    OPERATOR_TOKEN?: string;
     BILLING_CRON_ENABLED: boolean;
     BILLING_CRON_EXPRESSION: string;
     BILLING_TIMEZONE: string;
@@ -87,10 +88,7 @@ export function validateEnvironment(
             nodeEnv !== 'production',
         ),
         SWAGGER_PATH: pathSegment(input, 'SWAGGER_PATH', 'docs'),
-        OPERATOR_CREDENTIALS: operatorCredentials(
-            input,
-            'OPERATOR_CREDENTIALS',
-        ),
+        ...operatorCredentials(input),
         BILLING_CRON_ENABLED: booleanValue(input, 'BILLING_CRON_ENABLED', true),
         BILLING_CRON_EXPRESSION: cronExpression(
             input,
@@ -208,39 +206,26 @@ function enumValue<const T extends readonly string[]>(
 
 function operatorCredentials(
     input: Record<string, unknown>,
-    key: string,
-): Readonly<Record<string, string>> {
-    const value = raw(input, key);
-    if (!value) return {};
+): Pick<EnvironmentVariables, 'OPERATOR_ID' | 'OPERATOR_TOKEN'> {
+    const id = optionalString(input, 'OPERATOR_ID');
+    const token = optionalString(input, 'OPERATOR_TOKEN');
 
-    let parsed: unknown;
-    try {
-        parsed = JSON.parse(value);
-    } catch {
-        throw new Error(`${key} must be a JSON object of actor IDs to tokens`);
+    if ((id && !token) || (!id && token)) {
+        throw new Error(
+            'OPERATOR_ID and OPERATOR_TOKEN must be configured together',
+        );
+    }
+    if (!id || !token) return {};
+    if (!/^[A-Za-z0-9._:@-]{1,120}$/.test(id)) {
+        throw new Error('OPERATOR_ID contains an invalid actor ID');
+    }
+    if (token.length < 16 || token.length > 512) {
+        throw new Error(
+            'OPERATOR_TOKEN must be between 16 and 512 characters',
+        );
     }
 
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        throw new Error(`${key} must be a JSON object of actor IDs to tokens`);
-    }
-
-    const credentials = Object.entries(parsed as Record<string, unknown>);
-    for (const [actorId, token] of credentials) {
-        if (!/^[A-Za-z0-9._:@-]{1,120}$/.test(actorId)) {
-            throw new Error(`${key} contains an invalid actor ID`);
-        }
-        if (
-            typeof token !== 'string' ||
-            token.length < 16 ||
-            token.length > 512
-        ) {
-            throw new Error(
-                `${key} tokens must be between 16 and 512 characters`,
-            );
-        }
-    }
-
-    return Object.fromEntries(credentials) as Record<string, string>;
+    return { OPERATOR_ID: id, OPERATOR_TOKEN: token };
 }
 
 function cronExpression(
