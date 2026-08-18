@@ -24,15 +24,18 @@ export class BillingSchedulerRepository {
                 heartbeat_at: request.acquiredAt,
             })
             .onConflict((conflict) =>
-                conflict.column('lock_name').doUpdateSet({
-                    owner_token: request.ownerToken,
-                    acquired_at: request.acquiredAt,
-                    lease_expires_at: request.leaseExpiresAt,
-                    heartbeat_at: request.acquiredAt,
-                    version: sql<number>`scheduler_locks.version + 1`,
-                }).where(
-                    sql<boolean>`scheduler_locks.lease_expires_at <= ${request.acquiredAt}`,
-                ),
+                conflict
+                    .column('lock_name')
+                    .doUpdateSet({
+                        owner_token: request.ownerToken,
+                        acquired_at: request.acquiredAt,
+                        lease_expires_at: request.leaseExpiresAt,
+                        heartbeat_at: request.acquiredAt,
+                        version: sql<number>`scheduler_locks.version + 1`,
+                    })
+                    .where(
+                        sql<boolean>`scheduler_locks.lease_expires_at <= ${request.acquiredAt}`,
+                    ),
             )
             .returningAll()
             .executeTakeFirst();

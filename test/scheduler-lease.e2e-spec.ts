@@ -2,9 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
-import {
-    BillingSchedulerRepository,
-} from '../src/modules/billing-scheduler/billing-scheduler.repository';
+import { BillingSchedulerRepository } from '../src/modules/billing-scheduler/billing-scheduler.repository';
 
 const LOCK_NAME = `test.billing.scheduler.${randomUUID()}`;
 
@@ -50,7 +48,9 @@ describe('Scheduler coordinator lease (e2e)', () => {
 
         expect([first, second].filter(Boolean)).toHaveLength(1);
         expect(winner).toBeDefined();
-        expect(await repository.releaseLease(LOCK_NAME, loserToken)).toBe(false);
+        expect(await repository.releaseLease(LOCK_NAME, loserToken)).toBe(
+            false,
+        );
         expect(
             await repository.releaseLease(LOCK_NAME, winner!.owner_token),
         ).toBe(true);
