@@ -5,7 +5,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { DATABASE, type DatabaseClient } from '../src/database/database.module';
-import { InvoiceTransactionRepository } from '../src/modules/invoices/invoices.repository';
+import { InvoicePeriodConflictException } from '../src/modules/invoices/invoices.errors';
 import { InvoicesService } from '../src/modules/invoices/invoices.service';
 
 type CreateSubscriptionBody = {
@@ -16,11 +16,18 @@ type CreateSubscriptionBody = {
 
 type ClaimedFixture = {
     subscriptionId: string;
+    customerReference: string;
     runId: string;
     owner: string;
 };
 
-/** Builds a valid anchored subscription request for invoice generation tests. */
+type ExistingInvoiceOptions = {
+    currency: string;
+    idempotencyKey: string;
+    withItem?: boolean;
+};
+
+/** Builds the subscription request used by duplicate-confirmation scenarios. */
 const createSubscriptionRequest = (customerReference: string) => ({
     customerReference,
     description: 'Pro Plan - Monthly',
@@ -32,7 +39,7 @@ const createSubscriptionRequest = (customerReference: string) => ({
     anchorIsMonthEnd: false,
 });
 
-describe('Transactional invoice generation (e2e)', () => {
+describe('Invoice idempotency and duplicate protection (e2e)', () => {
     let app: INestApplication<Server>;
     let database: DatabaseClient;
     let invoices: InvoicesService;
@@ -96,8 +103,14 @@ describe('Transactional invoice generation (e2e)', () => {
         await app.close();
     });
 
-    it('commits invoice, line item, schedule advancement, failure reset, audit and claim release together', async () => {
+    it('duplicate-confirms an existing obligation and advances without creating a second invoice', async () => {
         const fixture = await createClaimedFixture();
+        const idempotencyKey = `invoice:${fixture.subscriptionId}:2026-01-31:2026-02-28`;
+        const invoiceId = await createExistingInvoice(fixture, {
+            currency: 'USD',
+            idempotencyKey,
+            withItem: true,
+        });
 
         const result = await invoices.generateClaimed({
             subscriptionId: fixture.subscriptionId,
@@ -106,33 +119,30 @@ describe('Transactional invoice generation (e2e)', () => {
             cutoffDate: '2026-01-31',
         });
 
-        expect(result.result).toBe('created');
-        expect(result.nextBillingDate).toBe('2026-02-28');
-        expect(result.invoice).toMatchObject({
-            subscription_id: fixture.subscriptionId,
-            billing_period_start: '2026-01-31',
-            billing_period_end: '2026-02-28',
-            issue_date: '2026-01-31',
-            currency: 'USD',
-            subtotal: '49.0000',
-            tax_total: '0.0000',
-            discount_total: '0.0000',
-            total: '49.0000',
-            idempotency_key: `invoice:${fixture.subscriptionId}:2026-01-31:2026-02-28`,
-            generated_by_run_id: fixture.runId,
+        expect(result).toMatchObject({
+            result: 'duplicate_confirmed',
+            invoice: {
+                id: invoiceId,
+                idempotency_key: idempotencyKey,
+            },
+            nextBillingDate: '2026-02-28',
         });
 
-        const item = await database
-            .selectFrom('invoice_items')
-            .selectAll()
-            .where('invoice_id', '=', result.invoice.id)
+        const invoiceCount = await database
+            .selectFrom('invoices')
+            .select((eb) => eb.fn.countAll<number>().as('count'))
+            .where('subscription_id', '=', fixture.subscriptionId)
+            .where('billing_period_start', '=', '2026-01-31')
+            .where('billing_period_end', '=', '2026-02-28')
             .executeTakeFirstOrThrow();
-        expect(item).toMatchObject({
-            description: 'Pro Plan - Monthly',
-            quantity: '1.0000',
-            unit_price: '49.0000',
-            line_total: '49.0000',
-        });
+        expect(Number(invoiceCount.count)).toBe(1);
+
+        const itemCount = await database
+            .selectFrom('invoice_items')
+            .select((eb) => eb.fn.countAll<number>().as('count'))
+            .where('invoice_id', '=', invoiceId)
+            .executeTakeFirstOrThrow();
+        expect(Number(itemCount.count)).toBe(1);
 
         const subscription = await database
             .selectFrom('subscriptions')
@@ -141,15 +151,8 @@ describe('Transactional invoice generation (e2e)', () => {
             .executeTakeFirstOrThrow();
         expect(subscription).toMatchObject({
             next_billing_date: '2026-02-28',
-            billing_state: 'ready',
-            billing_failure_count: 0,
-            billing_retry_at: null,
-            last_billing_error_code: null,
-            last_billing_error_message: null,
             processing_run_id: null,
             processing_owner: null,
-            processing_started_at: null,
-            processing_expires_at: null,
             version: 2,
         });
 
@@ -160,34 +163,28 @@ describe('Transactional invoice generation (e2e)', () => {
             .where('subscription_id', '=', fixture.subscriptionId)
             .executeTakeFirstOrThrow();
         expect(runItem).toMatchObject({
-            result: 'success',
+            result: 'duplicate_confirmed',
             before_billing_date: '2026-01-31',
             after_billing_date: '2026-02-28',
-            invoices_created: 1,
-            error_type: null,
-            error_code: null,
-            error_message: null,
+            invoices_created: 0,
         });
     });
 
-    it('rolls back invoice and schedule changes when item persistence fails', async () => {
+    it('rejects an inconsistent existing obligation without advancing the subscription', async () => {
         const fixture = await createClaimedFixture();
-        const createItem = jest
-            .spyOn(InvoiceTransactionRepository.prototype, 'createItemOrThrow')
-            .mockRejectedValueOnce(new Error('Injected invoice item failure'));
+        const invoiceId = await createExistingInvoice(fixture, {
+            currency: 'EUR',
+            idempotencyKey: `existing:${randomUUID()}`,
+        });
 
-        try {
-            await expect(
-                invoices.generateClaimed({
-                    subscriptionId: fixture.subscriptionId,
-                    runId: fixture.runId,
-                    owner: fixture.owner,
-                    cutoffDate: '2026-01-31',
-                }),
-            ).rejects.toThrow('Injected invoice item failure');
-        } finally {
-            createItem.mockRestore();
-        }
+        await expect(
+            invoices.generateClaimed({
+                subscriptionId: fixture.subscriptionId,
+                runId: fixture.runId,
+                owner: fixture.owner,
+                cutoffDate: '2026-01-31',
+            }),
+        ).rejects.toBeInstanceOf(InvoicePeriodConflictException);
 
         const subscription = await database
             .selectFrom('subscriptions')
@@ -196,22 +193,19 @@ describe('Transactional invoice generation (e2e)', () => {
             .executeTakeFirstOrThrow();
         expect(subscription).toMatchObject({
             next_billing_date: '2026-01-31',
-            billing_state: 'retry_wait',
-            billing_failure_count: 2,
-            billing_retry_at: new Date('2026-01-30T00:00:00.000Z'),
-            last_billing_error_code: 'DATABASE_TIMEOUT',
-            last_billing_error_message: 'Temporary database timeout',
             processing_run_id: fixture.runId,
             processing_owner: fixture.owner,
             version: 1,
         });
 
-        const invoiceCount = await database
+        const invoicesForPeriod = await database
             .selectFrom('invoices')
-            .select((eb) => eb.fn.countAll<number>().as('count'))
+            .select(['id', 'currency'])
             .where('subscription_id', '=', fixture.subscriptionId)
-            .executeTakeFirstOrThrow();
-        expect(Number(invoiceCount.count)).toBe(0);
+            .where('billing_period_start', '=', '2026-01-31')
+            .where('billing_period_end', '=', '2026-02-28')
+            .execute();
+        expect(invoicesForPeriod).toEqual([{ id: invoiceId, currency: 'EUR' }]);
 
         const runItems = await database
             .selectFrom('scheduler_run_items')
@@ -222,28 +216,16 @@ describe('Transactional invoice generation (e2e)', () => {
         expect(runItems).toHaveLength(0);
     });
 
-    /** Creates a subscription, scheduler run, and unexpired owned claim. */
+    /** Creates and claims a subscription for an idempotency E2E scenario. */
     async function createClaimedFixture(): Promise<ClaimedFixture> {
-        const customerReference = `TXN-${randomUUID().slice(0, 8)}`;
-        const response = await request(app.getHttpServer())
-            .post('/api/v1/subscriptions')
-            .send(createSubscriptionRequest(customerReference))
-            .expect(201);
-        const body = response.body as CreateSubscriptionBody;
-        const subscriptionId = body.data.id;
+        const customerReference = `IDEMP-${randomUUID().slice(0, 8)}`;
+        const subscriptionId = await createSubscription(customerReference);
         const runId = await createSchedulerRun();
-        const owner = `invoice-e2e:${randomUUID()}`;
-
-        subscriptionIds.push(subscriptionId);
+        const owner = `idempotency-e2e:${randomUUID()}`;
 
         await database
             .updateTable('subscriptions')
             .set({
-                billing_state: 'retry_wait',
-                billing_failure_count: 2,
-                billing_retry_at: '2026-01-30T00:00:00.000Z',
-                last_billing_error_code: 'DATABASE_TIMEOUT',
-                last_billing_error_message: 'Temporary database timeout',
                 processing_run_id: runId,
                 processing_owner: owner,
                 processing_started_at: '2026-01-31T00:05:00.000Z',
@@ -252,10 +234,69 @@ describe('Transactional invoice generation (e2e)', () => {
             .where('id', '=', subscriptionId)
             .executeTakeFirstOrThrow();
 
-        return { subscriptionId, runId, owner };
+        return { subscriptionId, customerReference, runId, owner };
     }
 
-    /** Persists a running scheduler run used to own an invoice-processing claim. */
+    /** Creates and tracks a subscription used by idempotency E2E scenarios. */
+    async function createSubscription(
+        customerReference: string,
+    ): Promise<string> {
+        const response = await request(app.getHttpServer())
+            .post('/api/v1/subscriptions')
+            .send(createSubscriptionRequest(customerReference))
+            .expect(201);
+        const body = response.body as CreateSubscriptionBody;
+
+        subscriptionIds.push(body.data.id);
+        return body.data.id;
+    }
+
+    /** Persists an existing invoice obligation used by duplicate scenarios. */
+    async function createExistingInvoice(
+        fixture: ClaimedFixture,
+        options: ExistingInvoiceOptions,
+    ): Promise<string> {
+        const id = randomUUID();
+
+        await database
+            .insertInto('invoices')
+            .values({
+                id,
+                invoice_number: `INV-${id.slice(0, 8)}`,
+                subscription_id: fixture.subscriptionId,
+                customer_reference: fixture.customerReference,
+                billing_period_start: '2026-01-31',
+                billing_period_end: '2026-02-28',
+                issue_date: '2026-01-31',
+                status: 'issued',
+                currency: options.currency,
+                subtotal: '49.0000',
+                tax_total: '0.0000',
+                discount_total: '0.0000',
+                total: '49.0000',
+                idempotency_key: options.idempotencyKey,
+                generated_by_run_id: fixture.runId,
+            })
+            .executeTakeFirstOrThrow();
+
+        if (options.withItem) {
+            await database
+                .insertInto('invoice_items')
+                .values({
+                    id: randomUUID(),
+                    invoice_id: id,
+                    description: 'Pro Plan - Monthly',
+                    quantity: '1.0000',
+                    unit_price: '49.0000',
+                    line_total: '49.0000',
+                })
+                .executeTakeFirstOrThrow();
+        }
+
+        return id;
+    }
+
+    /** Persists and tracks a running scheduler run for idempotency tests. */
     async function createSchedulerRun(): Promise<string> {
         const id = randomUUID();
 
@@ -268,7 +309,7 @@ describe('Transactional invoice generation (e2e)', () => {
                 triggered_at: '2026-01-31T00:05:00.000Z',
                 cutoff_date: '2026-01-31',
                 status: 'running',
-                instance_id: 'invoice-generation-e2e',
+                instance_id: 'invoice-idempotency-e2e',
                 lease_owner_token: `lease:${id}`,
                 started_at: '2026-01-31T00:05:00.000Z',
                 last_heartbeat_at: '2026-01-31T00:05:00.000Z',

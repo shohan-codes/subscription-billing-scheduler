@@ -48,7 +48,7 @@ export type InvoiceGenerationDraft = {
 };
 
 export type InvoiceGenerationResult = {
-    result: 'created';
+    result: 'created' | 'duplicate_confirmed';
     invoice: InvoiceRecord;
     nextBillingDate: string;
 };

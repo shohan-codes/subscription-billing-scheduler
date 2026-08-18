@@ -8,12 +8,15 @@ import { SubscriptionsAction } from '../subscriptions/subscriptions.action';
 import type { SubscriptionRecord } from '../subscriptions/subscriptions.types';
 import { InvoiceStatus } from './invoices.constant';
 import {
+    InvoicePeriodConflictException,
     SubscriptionClaimLostException,
     SubscriptionNotBillableException,
 } from './invoices.errors';
 import type {
     GenerateClaimedInvoiceRequest,
     InvoiceGenerationDraft,
+    InvoiceInsert,
+    InvoiceRecord,
 } from './invoices.types';
 
 @Injectable()
@@ -60,6 +63,24 @@ export class InvoicesAction {
         }
     }
 
+    /** Resolves a duplicate candidate or throws when it does not match the expected obligation. */
+    resolveDuplicateOrThrow(
+        existing: InvoiceRecord | undefined,
+        expected: InvoiceInsert,
+    ): InvoiceRecord {
+        if (
+            !existing ||
+            existing.subscription_id !== expected.subscription_id ||
+            existing.billing_period_start !== expected.billing_period_start ||
+            existing.billing_period_end !== expected.billing_period_end ||
+            existing.currency !== expected.currency
+        ) {
+            throw new InvoicePeriodConflictException();
+        }
+
+        return existing;
+    }
+
     /** Builds the baseline invoice, line-item snapshots, and following billing date. */
     buildGenerationDraft(
         subscription: SubscriptionRecord,
@@ -90,7 +111,11 @@ export class InvoicesAction {
                 tax_total: '0.0000',
                 discount_total: '0.0000',
                 total: subscription.amount,
-                idempotency_key: `draft:${invoiceId}`,
+                idempotency_key: buildIdempotencyKey(
+                    subscription.id,
+                    subscription.next_billing_date,
+                    nextBillingDate,
+                ),
                 generated_by_run_id: request.runId,
             },
             item: {
@@ -104,6 +129,15 @@ export class InvoicesAction {
             nextBillingDate,
         };
     }
+}
+
+/** Builds a stable idempotency key from a subscription and canonical billing period. */
+function buildIdempotencyKey(
+    subscriptionId: string,
+    periodStart: string,
+    periodEnd: string,
+): string {
+    return `invoice:${subscriptionId}:${periodStart}:${periodEnd}`;
 }
 
 /** Builds a compact unique invoice number for a generated invoice. */

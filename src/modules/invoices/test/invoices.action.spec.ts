@@ -2,10 +2,14 @@ import { SubscriptionsAction } from '../../subscriptions/subscriptions.action';
 import type { SubscriptionRecord } from '../../subscriptions/subscriptions.types';
 import { InvoicesAction } from '../invoices.action';
 import {
+    InvoicePeriodConflictException,
     SubscriptionClaimLostException,
     SubscriptionNotBillableException,
 } from '../invoices.errors';
-import type { GenerateClaimedInvoiceRequest } from '../invoices.types';
+import type {
+    GenerateClaimedInvoiceRequest,
+    InvoiceRecord,
+} from '../invoices.types';
 
 /** Builds the claimed subscription baseline used by invoice action tests. */
 const claimedSubscription = (): SubscriptionRecord => ({
@@ -39,6 +43,27 @@ const generationRequest = (): GenerateClaimedInvoiceRequest => ({
     runId: '7ca80aa5-c034-4858-898a-ea77536f64f0',
     owner: 'instance-a:claim-1',
     cutoffDate: '2026-01-31',
+});
+
+/** Builds an existing invoice matching the baseline billing obligation. */
+const existingInvoice = (): InvoiceRecord => ({
+    id: '45ad94ec-c56d-4444-9713-51caf5e319a3',
+    invoice_number: 'INV-20260131-EXISTING',
+    subscription_id: '81849854-7497-4ea4-a097-7aebf39f97f7',
+    customer_reference: 'CUST-1001',
+    billing_period_start: '2026-01-31',
+    billing_period_end: '2026-02-28',
+    issue_date: '2026-01-31',
+    status: 'issued',
+    currency: 'USD',
+    subtotal: '49.0000',
+    tax_total: '0.0000',
+    discount_total: '0.0000',
+    total: '49.0000',
+    idempotency_key:
+        'invoice:81849854-7497-4ea4-a097-7aebf39f97f7:2026-01-31:2026-02-28',
+    generated_by_run_id: '7ca80aa5-c034-4858-898a-ea77536f64f0',
+    created_at: new Date('2026-01-31T00:05:00.000Z'),
 });
 
 describe('InvoicesAction', () => {
@@ -135,6 +160,8 @@ describe('InvoicesAction', () => {
             tax_total: '0.0000',
             discount_total: '0.0000',
             total: '49.0000',
+            idempotency_key:
+                'invoice:81849854-7497-4ea4-a097-7aebf39f97f7:2026-01-31:2026-02-28',
             generated_by_run_id: '7ca80aa5-c034-4858-898a-ea77536f64f0',
         });
         expect(draft.item).toMatchObject({
@@ -144,5 +171,43 @@ describe('InvoicesAction', () => {
             line_total: '49.0000',
         });
         expect(draft.nextBillingDate).toBe('2026-02-28');
+    });
+
+    it('accepts an existing invoice that matches the same billing obligation', () => {
+        const draft = action.buildGenerationDraft(
+            claimedSubscription(),
+            generationRequest(),
+        );
+        const existing = existingInvoice();
+
+        expect(() =>
+            action.resolveDuplicateOrThrow(existing, draft.invoice),
+        ).not.toThrow();
+    });
+
+    it('rejects an existing invoice with inconsistent obligation data', () => {
+        const draft = action.buildGenerationDraft(
+            claimedSubscription(),
+            generationRequest(),
+        );
+
+        expect(() =>
+            action.resolveDuplicateOrThrow(undefined, draft.invoice),
+        ).toThrow(InvoicePeriodConflictException);
+        expect(() =>
+            action.resolveDuplicateOrThrow(
+                { ...existingInvoice(), currency: 'EUR' },
+                draft.invoice,
+            ),
+        ).toThrow(InvoicePeriodConflictException);
+        expect(() =>
+            action.resolveDuplicateOrThrow(
+                {
+                    ...existingInvoice(),
+                    billing_period_end: '2026-03-31',
+                },
+                draft.invoice,
+            ),
+        ).toThrow(InvoicePeriodConflictException);
     });
 });

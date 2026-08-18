@@ -4,6 +4,7 @@ const InvoiceErrorCode = {
     NotFound: 'INVOICE_NOT_FOUND',
     ClaimLost: 'SUBSCRIPTION_CLAIM_LOST',
     NotBillable: 'SUBSCRIPTION_NOT_BILLABLE',
+    PeriodConflict: 'INVOICE_PERIOD_CONFLICT',
 } as const;
 
 export class InvoiceNotFoundException extends NotFoundException {
@@ -30,6 +31,16 @@ export class SubscriptionNotBillableException extends ConflictException {
         super({
             code: InvoiceErrorCode.NotBillable,
             message,
+        });
+    }
+}
+
+export class InvoicePeriodConflictException extends ConflictException {
+    constructor() {
+        super({
+            code: InvoiceErrorCode.PeriodConflict,
+            message:
+                'Existing invoice does not match the expected billing obligation',
         });
     }
 }
