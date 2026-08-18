@@ -5,11 +5,18 @@ import { Injectable, type BeforeApplicationShutdown } from '@nestjs/common';
 export class ShutdownState implements BeforeApplicationShutdown {
     private stopping = false;
 
+    /** Reports whether application shutdown has started. */
     get isShuttingDown(): boolean {
         return this.stopping;
     }
 
-    beforeApplicationShutdown(): void {
+    /** Marks application shutdown as started for workers and trigger handlers. */
+    beginShutdown(): void {
         this.stopping = true;
+    }
+
+    /** Marks the application as shutting down before teardown begins. */
+    beforeApplicationShutdown(): void {
+        this.beginShutdown();
     }
 }

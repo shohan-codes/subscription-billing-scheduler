@@ -5,9 +5,12 @@ import {
     OnApplicationShutdown,
 } from '@nestjs/common';
 import { Kysely, PostgresDialect } from 'kysely';
-import { Pool } from 'pg';
+import { Pool, types } from 'pg';
 import { AppConfigService } from '../config/app-config.service';
 import type { DatabaseSchema } from './database.types';
+
+// Preserve PostgreSQL date values as timezone-free YYYY-MM-DD strings.
+types.setTypeParser(types.builtins.DATE, (value) => value);
 
 export const DATABASE = Symbol('DATABASE');
 export type DatabaseClient = Kysely<DatabaseSchema>;
@@ -16,6 +19,7 @@ export type DatabaseClient = Kysely<DatabaseSchema>;
 class DatabaseShutdown implements OnApplicationShutdown {
     constructor(@Inject(DATABASE) private readonly database: DatabaseClient) {}
 
+    /** Closes the shared database client during application shutdown. */
     async onApplicationShutdown(): Promise<void> {
         await this.database.destroy();
     }
