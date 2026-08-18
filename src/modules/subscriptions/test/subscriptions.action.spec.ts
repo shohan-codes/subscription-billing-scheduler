@@ -166,9 +166,7 @@ describe('SubscriptionsAction', () => {
             action.validateUpdateOrThrow(
                 {
                     ...currentSubscription(),
-                    processing_expires_at: new Date(
-                        '2026-08-18T01:00:00.000Z',
-                    ),
+                    processing_expires_at: new Date('2026-08-18T01:00:00.000Z'),
                 },
                 { nextBillingDate: '2026-09-30', version: 1 },
                 new Date('2026-08-18T00:00:00.000Z'),

@@ -181,7 +181,10 @@ describe('Subscription update (e2e)', () => {
             .expect(400);
     });
 
-    async function createSubscription(): Promise<{ id: string; version: number }> {
+    async function createSubscription(): Promise<{
+        id: string;
+        version: number;
+    }> {
         const response = await request(app.getHttpServer())
             .post('/api/v1/subscriptions')
             .send(createRequest(`UPDATE-${randomUUID().slice(0, 8)}`))

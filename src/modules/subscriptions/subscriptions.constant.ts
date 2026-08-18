@@ -19,5 +19,6 @@ export type SubscriptionBillingState =
     (typeof SubscriptionBillingState)[keyof typeof SubscriptionBillingState];
 
 export const SUBSCRIPTION_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-export const SUBSCRIPTION_AMOUNT_PATTERN = /^(?=.*[1-9])\d{1,15}(?:\.\d{1,4})?$/;
+export const SUBSCRIPTION_AMOUNT_PATTERN =
+    /^(?=.*[1-9])\d{1,15}(?:\.\d{1,4})?$/;
 export const SUBSCRIPTION_CURRENCY_PATTERN = /^[A-Z]{3}$/;
