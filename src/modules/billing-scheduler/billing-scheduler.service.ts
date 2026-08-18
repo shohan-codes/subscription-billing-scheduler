@@ -3,6 +3,7 @@ import { AppLogger } from '../../common/app-logger';
 import { Clock } from '../../common/clock';
 import { AppConfigService } from '../../config/app-config.service';
 import { BillingSchedulerAction } from './billing-scheduler.action';
+import { BillingSchedulerHeartbeat } from './billing-scheduler.heartbeat';
 import { BillingSchedulerRepository } from './billing-scheduler.repository';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class BillingSchedulerService {
         private readonly clock: Clock,
         private readonly action: BillingSchedulerAction,
         private readonly repository: BillingSchedulerRepository,
+        private readonly heartbeat: BillingSchedulerHeartbeat,
         private readonly logger: AppLogger,
     ) {}
 
@@ -35,14 +37,23 @@ export class BillingSchedulerService {
         this.logger.info('billing.lease.acquired', {
             jobName: lease.lock_name,
         });
-
-        const released = await this.repository.releaseLease(
-            lease.lock_name,
-            lease.owner_token,
-        );
-        this.logger.info('billing.lease.released', {
-            jobName: lease.lock_name,
-            released,
+        this.heartbeat.start({
+            lockName: lease.lock_name,
+            ownerToken: lease.owner_token,
         });
+
+        try {
+            if (this.heartbeat.isLeaseLost) return;
+        } finally {
+            this.heartbeat.stop();
+            const released = await this.repository.releaseLease(
+                lease.lock_name,
+                lease.owner_token,
+            );
+            this.logger.info('billing.lease.released', {
+                jobName: lease.lock_name,
+                released,
+            });
+        }
     }
 }

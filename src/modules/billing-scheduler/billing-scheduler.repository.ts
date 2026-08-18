@@ -41,6 +41,46 @@ export class BillingSchedulerRepository {
             .executeTakeFirst();
     }
 
+
+    /** Renews an unexpired scheduler lease only for its current owner. */
+    renewLease(
+        lockName: string,
+        ownerToken: string,
+        heartbeatAt: Date,
+        leaseExpiresAt: Date,
+    ): Promise<SchedulerLeaseRecord | undefined> {
+        return this.database
+            .updateTable('scheduler_locks')
+            .set({
+                heartbeat_at: heartbeatAt,
+                lease_expires_at: leaseExpiresAt,
+                version: sql<number>`version + 1`,
+            })
+            .where('lock_name', '=', lockName)
+            .where('owner_token', '=', ownerToken)
+            .where('lease_expires_at', '>', heartbeatAt)
+            .returningAll()
+            .executeTakeFirst();
+    }
+
+    /** Updates run liveness only while the matching lease owner still owns the running record. */
+    async updateRunHeartbeat(
+        runId: string,
+        ownerToken: string,
+        heartbeatAt: Date,
+    ): Promise<boolean> {
+        const run = await this.database
+            .updateTable('scheduler_runs')
+            .set({ last_heartbeat_at: heartbeatAt })
+            .where('id', '=', runId)
+            .where('lease_owner_token', '=', ownerToken)
+            .where('status', '=', 'running')
+            .returning('id')
+            .executeTakeFirst();
+
+        return Boolean(run);
+    }
+
     /** Releases a scheduler lease only while the caller still owns it. */
     async releaseLease(lockName: string, ownerToken: string): Promise<boolean> {
         const released = await this.database

@@ -25,6 +25,36 @@ describe('Scheduler coordinator lease (e2e)', () => {
         await app.close();
     });
 
+    it('renews only the matching unexpired lease owner', async () => {
+        const now = new Date();
+        const acquired = await repository.acquireLease({
+            lockName: LOCK_NAME,
+            ownerToken: 'owner-a',
+            acquiredAt: now,
+            leaseExpiresAt: new Date(now.getTime() + 120_000),
+        });
+
+        expect(acquired).toBeDefined();
+        await expect(
+            repository.renewLease(
+                LOCK_NAME,
+                'owner-b',
+                new Date(now.getTime() + 30_000),
+                new Date(now.getTime() + 150_000),
+            ),
+        ).resolves.toBeUndefined();
+        await expect(
+            repository.renewLease(
+                LOCK_NAME,
+                'owner-a',
+                new Date(now.getTime() + 30_000),
+                new Date(now.getTime() + 150_000),
+            ),
+        ).resolves.toBeDefined();
+
+        await repository.releaseLease(LOCK_NAME, 'owner-a');
+    });
+
     it('allows only one active owner and prevents another owner from releasing it', async () => {
         const now = new Date();
         const leaseExpiresAt = new Date(now.getTime() + 120_000);
