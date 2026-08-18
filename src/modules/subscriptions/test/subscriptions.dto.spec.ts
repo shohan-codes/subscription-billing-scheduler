@@ -1,5 +1,8 @@
 import { validate } from 'class-validator';
-import { CreateSubscriptionRequest } from '../subscriptions.dto';
+import {
+    CreateSubscriptionRequest,
+    UpdateSubscriptionRequest,
+} from '../subscriptions.dto';
 
 const validRequest = (): CreateSubscriptionRequest =>
     Object.assign(new CreateSubscriptionRequest(), {
@@ -29,6 +32,32 @@ describe('CreateSubscriptionRequest', () => {
         ['anchorIsMonthEnd', { anchorIsMonthEnd: 'true' }],
     ] as const)('rejects invalid %s values', async (property, values) => {
         const errors = await validate(Object.assign(validRequest(), values));
+
+        expect(errors.some((error) => error.property === property)).toBe(true);
+    });
+});
+
+describe('UpdateSubscriptionRequest', () => {
+    const validUpdate = (): UpdateSubscriptionRequest =>
+        Object.assign(new UpdateSubscriptionRequest(), {
+            description: 'Pro Plan - Annual',
+            version: 1,
+        });
+
+    it('accepts a partial update with a version precondition', async () => {
+        await expect(validate(validUpdate())).resolves.toHaveLength(0);
+    });
+
+    it.each([
+        ['description', { description: null }],
+        ['amount', { amount: '0.0000' }],
+        ['currency', { currency: 'usd' }],
+        ['nextBillingDate', { nextBillingDate: '2026-02-30' }],
+        ['billingAnchorDay', { billingAnchorDay: 32 }],
+        ['anchorIsMonthEnd', { anchorIsMonthEnd: 'true' }],
+        ['version', { version: 0 }],
+    ] as const)('rejects invalid %s values', async (property, values) => {
+        const errors = await validate(Object.assign(validUpdate(), values));
 
         expect(errors.some((error) => error.property === property)).toBe(true);
     });
