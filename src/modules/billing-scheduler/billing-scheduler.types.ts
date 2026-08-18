@@ -9,3 +9,9 @@ export interface SchedulerLeaseRequest {
     acquiredAt: Date;
     leaseExpiresAt: Date;
 }
+
+export interface SchedulerHeartbeatContext {
+    lockName: string;
+    ownerToken: string;
+    runId?: string;
+}

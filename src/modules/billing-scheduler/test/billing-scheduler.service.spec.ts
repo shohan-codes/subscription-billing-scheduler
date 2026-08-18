@@ -2,6 +2,7 @@ import type { AppLogger } from '../../../common/app-logger';
 import type { Clock } from '../../../common/clock';
 import type { AppConfigService } from '../../../config/app-config.service';
 import { BillingSchedulerService } from '../billing-scheduler.service';
+import type { BillingSchedulerHeartbeat } from '../billing-scheduler.heartbeat';
 import type { BillingSchedulerRepository } from '../billing-scheduler.repository';
 import type { SchedulerLeaseRequest } from '../billing-scheduler.types';
 
@@ -23,6 +24,8 @@ function createService(acquired: boolean) {
             : undefined,
     );
     const releaseLease = jest.fn().mockResolvedValue(true);
+    const start = jest.fn();
+    const stop = jest.fn();
     const info = jest.fn();
     const service = new BillingSchedulerService(
         {
@@ -37,10 +40,15 @@ function createService(acquired: boolean) {
             acquireLease,
             releaseLease,
         } as unknown as BillingSchedulerRepository,
+        {
+            start,
+            stop,
+            isLeaseLost: false,
+        } as unknown as BillingSchedulerHeartbeat,
         { info } as unknown as AppLogger,
     );
 
-    return { service, acquireLease, releaseLease, info };
+    return { service, acquireLease, releaseLease, start, stop, info };
 }
 
 describe('BillingSchedulerService', () => {
