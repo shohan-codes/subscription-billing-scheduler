@@ -4,6 +4,9 @@ const MAX_CURSOR_LENGTH = 512;
 const BASE64URL = /^[A-Za-z0-9_-]+$/;
 
 export type CursorPayload = Record<string, string | number | boolean | null>;
+export type CursorPayloadGuard<TPayload extends CursorPayload> = (
+    payload: Record<string, unknown>,
+) => payload is TPayload;
 
 /** Encodes and validates opaque pagination cursors. */
 @Injectable()
@@ -20,7 +23,15 @@ export class CursorCodec {
         return cursor;
     }
 
-    decodeOrThrow(cursor: string): Record<string, unknown> {
+    decodeOrThrow(cursor: string): Record<string, unknown>;
+    decodeOrThrow<TPayload extends CursorPayload>(
+        cursor: string,
+        guard: CursorPayloadGuard<TPayload>,
+    ): TPayload;
+    decodeOrThrow<TPayload extends CursorPayload>(
+        cursor: string,
+        guard?: CursorPayloadGuard<TPayload>,
+    ): Record<string, unknown> | TPayload {
         try {
             if (cursor.length > MAX_CURSOR_LENGTH || !BASE64URL.test(cursor)) {
                 throw new Error('Malformed cursor');
@@ -34,7 +45,10 @@ export class CursorCodec {
 
             const payload: unknown = JSON.parse(json);
 
-            if (!isRecord(payload)) throw new Error('Malformed cursor');
+            if (!isRecord(payload) || (guard && !guard(payload))) {
+                throw new Error('Malformed cursor');
+            }
+
             return payload;
         } catch {
             throw new BadRequestException({

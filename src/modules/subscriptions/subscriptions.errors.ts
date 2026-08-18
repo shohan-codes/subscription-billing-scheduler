@@ -1,9 +1,22 @@
-import { UnprocessableEntityException } from '@nestjs/common';
+import {
+    NotFoundException,
+    UnprocessableEntityException,
+} from '@nestjs/common';
 
 export const SubscriptionErrorCode = {
+    NotFound: 'SUBSCRIPTION_NOT_FOUND',
     InvalidDates: 'INVALID_SUBSCRIPTION_DATES',
     InvalidBillingAnchor: 'INVALID_BILLING_ANCHOR',
 } as const;
+
+export class SubscriptionNotFoundException extends NotFoundException {
+    constructor() {
+        super({
+            code: SubscriptionErrorCode.NotFound,
+            message: 'Subscription was not found',
+        });
+    }
+}
 
 export class InvalidSubscriptionDatesException extends UnprocessableEntityException {
     constructor() {

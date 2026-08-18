@@ -1,98 +1,50 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
     IsBoolean,
+    IsIn,
     IsInt,
     IsISO8601,
     IsNotEmpty,
+    IsOptional,
     IsString,
+    IsUUID,
     Matches,
     Max,
     MaxLength,
     Min,
 } from 'class-validator';
 import { ApiResponseField } from '../../common/decorators/api-response-field.decorator';
+import {
+    CursorPaginationMetaResponse,
+    CursorPaginationRequest,
+} from '../../common/dto/cursor-pagination.dto';
 import { ResponseDto } from '../../common/dto/response.dto';
 import {
+    SUBSCRIPTION_DATE_PATTERN,
     SubscriptionBillingState,
     SubscriptionStatus,
 } from './subscriptions.constant';
-import type { SubscriptionRecord } from './subscriptions.types';
+import type {
+    InvoiceRecord,
+    SubscriptionListResult,
+    SubscriptionRecord,
+    SubscriptionWithLatestInvoice,
+} from './subscriptions.types';
 
 const SubscriptionResponseField = ApiResponseField<SubscriptionRecord>;
+const LatestInvoiceResponseField = ApiResponseField<InvoiceRecord>;
+const GetSubscriptionResponseField =
+    ApiResponseField<SubscriptionWithLatestInvoice>;
+const ListSubscriptionsResponseField = ApiResponseField<SubscriptionListResult>;
 
 const AMOUNT_PATTERN = /^(?=.*[1-9])\d{1,15}(?:\.\d{1,4})?$/;
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-// ---------- Create Subscription ----------
+// ---------- Shared Subscription Response ----------
 
-export class CreateSubscriptionRequest {
-    @ApiProperty({ example: 'CUST-1001', maxLength: 100 })
-    @IsString()
-    @IsNotEmpty()
-    @MaxLength(100)
-    customerReference!: string;
-
-    @ApiProperty({ example: 'Pro Plan - Monthly', maxLength: 255 })
-    @IsString()
-    @IsNotEmpty()
-    @MaxLength(255)
-    description!: string;
-
-    @ApiProperty({ example: '49.0000', pattern: AMOUNT_PATTERN.source })
-    @IsString()
-    @Matches(AMOUNT_PATTERN, {
-        message:
-            'amount must be greater than zero with up to 15 integer and 4 fractional digits',
-    })
-    amount!: string;
-
-    @ApiProperty({
-        example: 'USD',
-        minLength: 3,
-        maxLength: 3,
-        pattern: CURRENCY_PATTERN.source,
-    })
-    @IsString()
-    @Matches(CURRENCY_PATTERN, {
-        message: 'currency must be a three-letter uppercase code',
-    })
-    currency!: string;
-
-    @ApiProperty({
-        example: '2026-08-16',
-        format: 'date',
-        pattern: DATE_PATTERN.source,
-    })
-    @IsString()
-    @Matches(DATE_PATTERN, { message: 'startDate must use YYYY-MM-DD format' })
-    @IsISO8601({ strict: true })
-    startDate!: string;
-
-    @ApiProperty({
-        example: '2026-08-31',
-        format: 'date',
-        pattern: DATE_PATTERN.source,
-    })
-    @IsString()
-    @Matches(DATE_PATTERN, {
-        message: 'firstBillingDate must use YYYY-MM-DD format',
-    })
-    @IsISO8601({ strict: true })
-    firstBillingDate!: string;
-
-    @ApiProperty({ example: 31, minimum: 1, maximum: 31 })
-    @IsInt()
-    @Min(1)
-    @Max(31)
-    billingAnchorDay!: number;
-
-    @ApiProperty({ example: true })
-    @IsBoolean()
-    anchorIsMonthEnd!: boolean;
-}
-
-export class CreateSubscriptionResponse extends ResponseDto<SubscriptionRecord> {
+class SubscriptionResponse<
+    TSource extends SubscriptionRecord = SubscriptionRecord,
+> extends ResponseDto<TSource> {
     @SubscriptionResponseField({
         example: '81849854-7497-4ea4-a097-7aebf39f97f7',
         format: 'uuid',
@@ -202,4 +154,207 @@ export class CreateSubscriptionResponse extends ResponseDto<SubscriptionRecord> 
         transform: (source) => source.updated_at.toISOString(),
     })
     updatedAt!: string;
+}
+
+export class LatestInvoiceSummaryResponse extends ResponseDto<InvoiceRecord> {
+    @LatestInvoiceResponseField({
+        example: '8b4d0359-4ff4-494c-8cdd-2f42cc5a0352',
+        format: 'uuid',
+    })
+    id!: string;
+
+    @LatestInvoiceResponseField({
+        example: 'INV-20260831-0001',
+        transform: (source) => source.invoice_number,
+    })
+    invoiceNumber!: string;
+
+    @LatestInvoiceResponseField({
+        example: '2026-08-01',
+        format: 'date',
+        transform: (source) => source.billing_period_start,
+    })
+    billingPeriodStart!: string;
+
+    @LatestInvoiceResponseField({
+        example: '2026-09-01',
+        format: 'date',
+        transform: (source) => source.billing_period_end,
+    })
+    billingPeriodEnd!: string;
+
+    @LatestInvoiceResponseField({
+        example: '2026-08-31',
+        format: 'date',
+        transform: (source) => source.issue_date,
+    })
+    issueDate!: string;
+
+    @LatestInvoiceResponseField({ example: 'issued' })
+    status!: 'issued';
+
+    @LatestInvoiceResponseField({ example: 'USD' })
+    currency!: string;
+
+    @LatestInvoiceResponseField({ example: '49.0000' })
+    total!: string;
+}
+
+// ---------- Create Subscription ----------
+
+export class CreateSubscriptionRequest {
+    @ApiProperty({ example: 'CUST-1001', maxLength: 100 })
+    @IsString()
+    @IsNotEmpty()
+    @MaxLength(100)
+    customerReference!: string;
+
+    @ApiProperty({ example: 'Pro Plan - Monthly', maxLength: 255 })
+    @IsString()
+    @IsNotEmpty()
+    @MaxLength(255)
+    description!: string;
+
+    @ApiProperty({ example: '49.0000', pattern: AMOUNT_PATTERN.source })
+    @IsString()
+    @Matches(AMOUNT_PATTERN, {
+        message:
+            'amount must be greater than zero with up to 15 integer and 4 fractional digits',
+    })
+    amount!: string;
+
+    @ApiProperty({
+        example: 'USD',
+        minLength: 3,
+        maxLength: 3,
+        pattern: CURRENCY_PATTERN.source,
+    })
+    @IsString()
+    @Matches(CURRENCY_PATTERN, {
+        message: 'currency must be a three-letter uppercase code',
+    })
+    currency!: string;
+
+    @ApiProperty({
+        example: '2026-08-16',
+        format: 'date',
+        pattern: SUBSCRIPTION_DATE_PATTERN.source,
+    })
+    @IsString()
+    @Matches(SUBSCRIPTION_DATE_PATTERN, {
+        message: 'startDate must use YYYY-MM-DD format',
+    })
+    @IsISO8601({ strict: true })
+    startDate!: string;
+
+    @ApiProperty({
+        example: '2026-08-31',
+        format: 'date',
+        pattern: SUBSCRIPTION_DATE_PATTERN.source,
+    })
+    @IsString()
+    @Matches(SUBSCRIPTION_DATE_PATTERN, {
+        message: 'firstBillingDate must use YYYY-MM-DD format',
+    })
+    @IsISO8601({ strict: true })
+    firstBillingDate!: string;
+
+    @ApiProperty({ example: 31, minimum: 1, maximum: 31 })
+    @IsInt()
+    @Min(1)
+    @Max(31)
+    billingAnchorDay!: number;
+
+    @ApiProperty({ example: true })
+    @IsBoolean()
+    anchorIsMonthEnd!: boolean;
+}
+
+export class CreateSubscriptionResponse extends SubscriptionResponse {}
+
+// ---------- Get Subscription ----------
+
+export class GetSubscriptionRequest {
+    @ApiProperty({
+        example: '81849854-7497-4ea4-a097-7aebf39f97f7',
+        format: 'uuid',
+    })
+    @IsUUID()
+    id!: string;
+}
+
+export class GetSubscriptionResponse extends SubscriptionResponse<SubscriptionWithLatestInvoice> {
+    @GetSubscriptionResponseField({
+        example: null,
+        nullable: true,
+        type: () => LatestInvoiceSummaryResponse,
+        transform: (source) =>
+            source.latestInvoice
+                ? LatestInvoiceSummaryResponse.from(source.latestInvoice)
+                : null,
+    })
+    latestInvoice!: LatestInvoiceSummaryResponse | null;
+}
+
+// ---------- List Subscriptions ----------
+
+export class ListSubscriptionsRequest extends CursorPaginationRequest {
+    @ApiPropertyOptional({
+        example: SubscriptionStatus.Active,
+        enum: Object.values(SubscriptionStatus),
+        enumName: 'SubscriptionStatus',
+    })
+    @IsOptional()
+    @IsIn(Object.values(SubscriptionStatus))
+    status?: SubscriptionStatus;
+
+    @ApiPropertyOptional({
+        example: SubscriptionBillingState.Ready,
+        enum: Object.values(SubscriptionBillingState),
+        enumName: 'SubscriptionBillingState',
+    })
+    @IsOptional()
+    @IsIn(Object.values(SubscriptionBillingState))
+    billingState?: SubscriptionBillingState;
+
+    @ApiPropertyOptional({ example: 'CUST-1001', maxLength: 100 })
+    @IsOptional()
+    @IsString()
+    @IsNotEmpty()
+    @MaxLength(100)
+    customerReference?: string;
+
+    @ApiPropertyOptional({
+        description: 'Include subscriptions due on or before this date',
+        example: '2026-08-31',
+        format: 'date',
+        pattern: SUBSCRIPTION_DATE_PATTERN.source,
+    })
+    @IsOptional()
+    @IsString()
+    @Matches(SUBSCRIPTION_DATE_PATTERN, {
+        message: 'dueBefore must use YYYY-MM-DD format',
+    })
+    @IsISO8601({ strict: true })
+    dueBefore?: string;
+}
+
+export class ListSubscriptionItemResponse extends SubscriptionResponse {}
+
+export class ListSubscriptionsResponse extends ResponseDto<SubscriptionListResult> {
+    @ListSubscriptionsResponseField({
+        example: [],
+        type: () => ListSubscriptionItemResponse,
+        isArray: true,
+        transform: (source) =>
+            source.items.map((item) => ListSubscriptionItemResponse.from(item)),
+    })
+    items!: ListSubscriptionItemResponse[];
+
+    @ListSubscriptionsResponseField({
+        type: () => CursorPaginationMetaResponse,
+        transform: (source) =>
+            CursorPaginationMetaResponse.from(source.pagination),
+    })
+    pagination!: CursorPaginationMetaResponse;
 }
