@@ -113,7 +113,7 @@ async function seed(): Promise<void> {
                     {
                         id: subscriptionIds[5],
                         customer_reference: 'CUST-DEMO-3003',
-                        description: 'Starter Plan - September Due',
+                        description: 'Starter Plan - Claimed',
                         status: 'active',
                         billing_state: 'ready',
                         currency: 'USD',
@@ -122,6 +122,9 @@ async function seed(): Promise<void> {
                         next_billing_date: '2026-09-15',
                         billing_anchor_day: 15,
                         anchor_is_month_end: false,
+                        processing_owner: 'seed-scheduler',
+                        processing_started_at: '2026-08-18T03:00:00.000Z',
+                        processing_expires_at: '2099-08-18T03:05:00.000Z',
                     },
                 ])
                 .execute();
@@ -165,6 +168,9 @@ async function seed(): Promise<void> {
         console.log(`Get demo: /api/v1/subscriptions/${subscriptionIds[1]}`);
         console.log(
             'List demo: /api/v1/subscriptions?customerReference=CUST-DEMO-1001',
+        );
+        console.log(
+            `Claimed update demo: /api/v1/subscriptions/${subscriptionIds[5]}`,
         );
     } finally {
         await app.close();
