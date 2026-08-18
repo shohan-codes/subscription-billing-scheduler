@@ -29,9 +29,7 @@ export class SubscriptionsAction {
     }
 
     /** Resolves the paused status for a valid pause transition. */
-    resolvePauseStatusOrThrow(
-        current: SubscriptionRecord,
-    ): SubscriptionStatus {
+    resolvePauseStatusOrThrow(current: SubscriptionRecord): SubscriptionStatus {
         if (current.status !== SubscriptionStatus.Active) {
             throw new SubscriptionStateConflictException(
                 'Only active subscriptions can be paused',

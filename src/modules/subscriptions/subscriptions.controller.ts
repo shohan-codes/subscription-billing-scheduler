@@ -2,6 +2,7 @@ import {
     Body,
     Controller,
     Get,
+    HttpCode,
     HttpStatus,
     Param,
     Patch,
@@ -59,6 +60,7 @@ export class SubscriptionsController {
     }
 
     @Post(':id/pause')
+    @HttpCode(HttpStatus.OK)
     @ApiRoute({
         summary: 'Pause a subscription',
         auth: false,
@@ -73,6 +75,7 @@ export class SubscriptionsController {
     }
 
     @Post(':id/resume')
+    @HttpCode(HttpStatus.OK)
     @ApiRoute({
         summary: 'Resume a subscription',
         auth: false,
@@ -87,6 +90,7 @@ export class SubscriptionsController {
     }
 
     @Post(':id/cancel')
+    @HttpCode(HttpStatus.OK)
     @ApiRoute({
         summary: 'Cancel a subscription',
         auth: false,
