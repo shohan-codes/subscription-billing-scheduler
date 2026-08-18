@@ -59,8 +59,10 @@ describe('BillingSchedulerCron', () => {
             [string, CronJobMock] | undefined;
         const job = call?.[1] as CronJobMock;
         await job.fireOnTick();
-        job.stop();
+        const stop = jest.spyOn(job, 'stop');
+        cron.beforeApplicationShutdown();
 
         expect(triggerScheduled).toHaveBeenCalledTimes(1);
+        expect(stop).toHaveBeenCalled();
     });
 });

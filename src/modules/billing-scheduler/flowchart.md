@@ -44,9 +44,13 @@ flowchart TD
         direction TB
 
         TRIGGER["BillingSchedulerService.triggerManual"]
+        SHUTDOWN{"Application shutdown started?"}
         COORDINATE["Run shared coordinator path"]
+        SHUTDOWN_ERROR["503 SCHEDULER_SHUTTING_DOWN"]
 
-        TRIGGER --> COORDINATE
+        TRIGGER --> SHUTDOWN
+        SHUTDOWN -- No --> COORDINATE
+        SHUTDOWN -- Yes --> SHUTDOWN_ERROR
     end
 
     AUTH_VALID --> TRIGGER
@@ -161,6 +165,7 @@ flowchart TD
     end
 
     AUTH_INVALID --> FILTER
+    SHUTDOWN_ERROR --> FILTER
     CONFLICT --> FILTER
 
     SUCCESS_CLIENT --> END_SUCCESS([End])

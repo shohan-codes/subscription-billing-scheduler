@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, type BeforeApplicationShutdown } from '@nestjs/common';
 import { isISO8601, isUUID } from 'class-validator';
 import { AppLogger } from '../../common/app-logger';
 import { Clock } from '../../common/clock';
+import { ShutdownState } from '../../common/shutdown-state';
 import { CursorCodec } from '../../common/utils/cursor-codec';
 import { AppConfigService } from '../../config/app-config.service';
 import { BillingSchedulerAction } from './billing-scheduler.action';
@@ -39,10 +40,13 @@ const EMPTY_COUNTERS: SchedulerRunCounters = {
 };
 
 @Injectable()
-export class BillingSchedulerService {
+export class BillingSchedulerService implements BeforeApplicationShutdown {
+    private readonly inFlight = new Set<Promise<unknown>>();
+
     constructor(
         private readonly config: AppConfigService,
         private readonly clock: Clock,
+        private readonly shutdownState: ShutdownState,
         private readonly action: BillingSchedulerAction,
         private readonly repository: BillingSchedulerRepository,
         private readonly heartbeat: BillingSchedulerHeartbeat,
@@ -52,8 +56,13 @@ export class BillingSchedulerService {
 
     /** Starts the scheduler coordinator path for a scheduled trigger. */
     async triggerScheduled(): Promise<void> {
+        if (this.shutdownState.isShuttingDown) {
+            this.logger.info('billing.trigger.skipped_shutdown');
+            return;
+        }
+
         try {
-            await this.coordinate(SchedulerTriggerType.Scheduled);
+            await this.track(this.coordinate(SchedulerTriggerType.Scheduled));
         } catch {
             this.logger.error('billing.trigger.failed', {
                 errorCode: 'SCHEDULER_TRIGGER_FAILED',
@@ -63,7 +72,12 @@ export class BillingSchedulerService {
 
     /** Starts an operator-requested billing run through the same coordinator path. */
     async triggerManual(): Promise<TriggerBillingRunResponse> {
-        const run = await this.coordinate(SchedulerTriggerType.Manual);
+        this.action.validateTriggerAllowedOrThrow(
+            this.shutdownState.isShuttingDown,
+        );
+        const run = await this.track(
+            this.coordinate(SchedulerTriggerType.Manual),
+        );
         this.action.validateManualRunOrThrow(run);
 
         return TriggerBillingRunResponse.from(run);
@@ -146,10 +160,53 @@ export class BillingSchedulerService {
         });
     }
 
+    /** Stops new scheduler work and waits up to the configured run bound for active attempts. */
+    async beforeApplicationShutdown(): Promise<void> {
+        this.shutdownState.beginShutdown();
+        await this.waitForInFlight();
+    }
+
+    /** Tracks an in-flight coordinator attempt until it settles. */
+    private track<T>(work: Promise<T>): Promise<T> {
+        this.inFlight.add(work);
+        void work.then(
+            () => this.inFlight.delete(work),
+            () => this.inFlight.delete(work),
+        );
+        return work;
+    }
+
+    /** Waits for active coordinator attempts without exceeding the configured shutdown bound. */
+    private async waitForInFlight(): Promise<void> {
+        if (this.inFlight.size === 0) return;
+
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        const timedOut = new Promise<boolean>((resolve) => {
+            timeout = setTimeout(
+                () => resolve(true),
+                this.config.billing.maxRunSeconds * 1000,
+            );
+        });
+        const completed = Promise.allSettled([...this.inFlight]).then(
+            () => false,
+        );
+        const didTimeOut = await Promise.race([completed, timedOut]);
+        if (timeout) clearTimeout(timeout);
+
+        if (didTimeOut) {
+            this.logger.warn('billing.shutdown.timeout', {
+                inFlightCount: this.inFlight.size,
+            });
+        }
+    }
+
     /** Coordinates one scheduled or manual trigger around lease ownership and run history. */
     private async coordinate(
         triggerType: SchedulerTriggerType,
     ): Promise<SchedulerRunRecord> {
+        this.action.validateTriggerAllowedOrThrow(
+            this.shutdownState.isShuttingDown,
+        );
         const triggeredAt = this.clock.now();
         const cutoffDate = this.clock.dateInTimeZone(
             this.config.billing.timezone,
@@ -194,39 +251,44 @@ export class BillingSchedulerService {
             return skipped;
         }
 
-        const run = await this.repository.createRunOrThrow({
-            id: randomUUID(),
-            job_name: BILLING_SCHEDULER_JOB_NAME,
-            trigger_type: triggerType,
-            triggered_at: triggeredAt,
-            cutoff_date: cutoffDate,
-            status: SchedulerRunStatus.Running,
-            instance_id: this.config.app.instanceId,
-            lease_owner_token: lease.owner_token,
-            started_at: triggeredAt,
-            completed_at: null,
-            last_heartbeat_at: triggeredAt,
-            eligible_count: 0,
-            claimed_count: 0,
-            succeeded_count: 0,
-            failed_count: 0,
-            skipped_count: 0,
-            invoices_created_count: 0,
-            error_code: null,
-            error_message: null,
-        });
-        this.heartbeat.start({
-            lockName: lease.lock_name,
-            ownerToken: lease.owner_token,
-            runId: run.id,
-        });
-        this.logger.info('billing.run.started', {
-            runId: run.id,
-            triggerType,
-        });
+        let run: SchedulerRunRecord | undefined;
 
         try {
-            if (this.heartbeat.isLeaseLost) {
+            run = await this.repository.createRunOrThrow({
+                id: randomUUID(),
+                job_name: BILLING_SCHEDULER_JOB_NAME,
+                trigger_type: triggerType,
+                triggered_at: triggeredAt,
+                cutoff_date: cutoffDate,
+                status: SchedulerRunStatus.Running,
+                instance_id: this.config.app.instanceId,
+                lease_owner_token: lease.owner_token,
+                started_at: triggeredAt,
+                completed_at: null,
+                last_heartbeat_at: triggeredAt,
+                eligible_count: 0,
+                claimed_count: 0,
+                succeeded_count: 0,
+                failed_count: 0,
+                skipped_count: 0,
+                invoices_created_count: 0,
+                error_code: null,
+                error_message: null,
+            });
+            this.heartbeat.start({
+                lockName: lease.lock_name,
+                ownerToken: lease.owner_token,
+                runId: run.id,
+            });
+            this.logger.info('billing.run.started', {
+                runId: run.id,
+                triggerType,
+            });
+
+            if (
+                this.heartbeat.isLeaseLost ||
+                this.shutdownState.isShuttingDown
+            ) {
                 return this.repository.finalizeRunOrThrow(
                     run.id,
                     lease.owner_token,
@@ -234,8 +296,12 @@ export class BillingSchedulerService {
                         status: SchedulerRunStatus.Interrupted,
                         completedAt: this.clock.now(),
                         counters: EMPTY_COUNTERS,
-                        errorCode: 'SCHEDULER_LEASE_LOST',
-                        errorMessage: 'Scheduler lease ownership was lost',
+                        errorCode: this.heartbeat.isLeaseLost
+                            ? 'SCHEDULER_LEASE_LOST'
+                            : 'SHUTDOWN_INTERRUPTED',
+                        errorMessage: this.heartbeat.isLeaseLost
+                            ? 'Scheduler lease ownership was lost'
+                            : 'Billing run was interrupted by application shutdown',
                     },
                 );
             }
@@ -250,6 +316,8 @@ export class BillingSchedulerService {
                 },
             );
         } catch (error) {
+            if (!run) throw error;
+
             const failure = this.action.resolveSafeRunFailure(error);
             const failed = await this.repository.finalizeRun(
                 run.id,
@@ -276,7 +344,7 @@ export class BillingSchedulerService {
                 lease.owner_token,
             );
             this.logger.info('billing.lease.released', {
-                runId: run.id,
+                ...(run ? { runId: run.id } : {}),
                 jobName: lease.lock_name,
                 released,
             });

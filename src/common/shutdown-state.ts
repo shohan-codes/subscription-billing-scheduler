@@ -10,8 +10,13 @@ export class ShutdownState implements BeforeApplicationShutdown {
         return this.stopping;
     }
 
+    /** Marks application shutdown as started for workers and trigger handlers. */
+    beginShutdown(): void {
+        this.stopping = true;
+    }
+
     /** Marks the application as shutting down before teardown begins. */
     beforeApplicationShutdown(): void {
-        this.stopping = true;
+        this.beginShutdown();
     }
 }

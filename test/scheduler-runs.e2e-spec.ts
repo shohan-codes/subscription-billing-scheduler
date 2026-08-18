@@ -5,6 +5,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { AppConfigService } from '../src/config/app-config.service';
+import { ShutdownState } from '../src/common/shutdown-state';
 import { DATABASE, type DatabaseClient } from '../src/database/database.module';
 import { BILLING_SCHEDULER_JOB_NAME } from '../src/modules/billing-scheduler/billing-scheduler.constant';
 import { BillingSchedulerRepository } from '../src/modules/billing-scheduler/billing-scheduler.repository';
@@ -166,5 +167,27 @@ describe('Scheduler run history and manual trigger (e2e)', () => {
         expect(skipped.error_code).toBe('SCHEDULER_LEASE_UNAVAILABLE');
 
         await repository.releaseLease(BILLING_SCHEDULER_JOB_NAME, ownerToken);
+    });
+
+    it('starts no new scheduler attempts after graceful shutdown begins', async () => {
+        const shutdown = app.get(ShutdownState);
+        const startedAt = new Date();
+        shutdown.beginShutdown();
+
+        await scheduler.triggerScheduled();
+
+        const newRuns = await database
+            .selectFrom('scheduler_runs')
+            .select('id')
+            .where('instance_id', '=', app.get(AppConfigService).app.instanceId)
+            .where('triggered_at', '>=', startedAt)
+            .execute();
+        expect(newRuns).toEqual([]);
+
+        await request(app.getHttpServer())
+            .post('/api/v1/operations/billing-runs')
+            .set('Authorization', `Bearer ${OPERATOR_TOKEN}`)
+            .send({})
+            .expect(503);
     });
 });

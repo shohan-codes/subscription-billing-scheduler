@@ -33,6 +33,7 @@ export class BillingSchedulerController {
         summary: 'Start a manual billing run',
         status: HttpStatus.ACCEPTED,
         conflict: true,
+        serviceUnavailable: true,
         responseType: TriggerBillingRunResponse,
     })
     trigger(): Promise<TriggerBillingRunResponse> {

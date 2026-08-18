@@ -4,7 +4,10 @@ import {
     BILLING_SCHEDULER_JOB_NAME,
     SchedulerRunStatus,
 } from './billing-scheduler.constant';
-import { SchedulerLeaseUnavailableException } from './billing-scheduler.errors';
+import {
+    SchedulerLeaseUnavailableException,
+    SchedulerShuttingDownException,
+} from './billing-scheduler.errors';
 import type {
     SchedulerLeaseRequest,
     SchedulerRunCounters,
@@ -26,6 +29,11 @@ export class BillingSchedulerAction {
             acquiredAt: now,
             leaseExpiresAt: new Date(now.getTime() + leaseSeconds * 1000),
         };
+    }
+
+    /** Rejects a trigger that begins after scheduler shutdown has started. */
+    validateTriggerAllowedOrThrow(isShuttingDown: boolean): void {
+        if (isShuttingDown) throw new SchedulerShuttingDownException();
     }
 
     /** Rejects a manual trigger when another coordinator already owns the lease. */
