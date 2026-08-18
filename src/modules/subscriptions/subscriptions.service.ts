@@ -168,6 +168,7 @@ export class SubscriptionsService {
     }
 }
 
+/** Validates the decoded cursor shape used by subscription listing. */
 function isSubscriptionListCursor(
     payload: Record<string, unknown>,
 ): payload is SubscriptionListCursor {

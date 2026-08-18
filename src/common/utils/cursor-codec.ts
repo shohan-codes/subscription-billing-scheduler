@@ -11,6 +11,7 @@ export type CursorPayloadGuard<TPayload extends CursorPayload> = (
 /** Encodes and validates opaque pagination cursors. */
 @Injectable()
 export class CursorCodec {
+    /** Encodes a payload as an opaque base64url cursor. */
     encode(payload: CursorPayload): string {
         const cursor = Buffer.from(JSON.stringify(payload)).toString(
             'base64url',
@@ -23,6 +24,7 @@ export class CursorCodec {
         return cursor;
     }
 
+    /** Decodes a cursor or throws when its encoding or payload is invalid. */
     decodeOrThrow(cursor: string): Record<string, unknown>;
     decodeOrThrow<TPayload extends CursorPayload>(
         cursor: string,
@@ -59,6 +61,7 @@ export class CursorCodec {
     }
 }
 
+/** Checks whether a cursor payload is a non-null plain record. */
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

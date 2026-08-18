@@ -40,12 +40,7 @@ interface BillingConfiguration {
     readonly runOnStartup: boolean;
 }
 
-/**
- * Exposes validated environment config through typed groups.
- *
- * - Application code reads config through this service.
- * - Env-key mapping stays at this boundary.
- */
+/** Exposes validated environment configuration through typed groups. */
 @Injectable()
 export class AppConfigService {
     readonly app: AppConfiguration;

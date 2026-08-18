@@ -21,6 +21,7 @@ export class OperatorGuard implements CanActivate {
         private readonly logger: AppLogger,
     ) {}
 
+    /** Authorizes a request with the configured operator bearer token. */
     canActivate(executionContext: ExecutionContext): boolean {
         const request = executionContext
             .switchToHttp()
@@ -47,12 +48,14 @@ export class OperatorGuard implements CanActivate {
     }
 }
 
+/** Extracts a bearer token from an Authorization header. */
 function bearerToken(authorization: string | undefined): string | undefined {
     if (!authorization?.startsWith(BEARER_PREFIX)) return undefined;
     const token = authorization.slice(BEARER_PREFIX.length).trim();
     return token || undefined;
 }
 
+/** Compares secrets using equal-length digests and constant-time comparison. */
 function secureEqual(actual: string, expected: string): boolean {
     const actualDigest = createHash('sha256').update(actual).digest();
     const expectedDigest = createHash('sha256').update(expected).digest();

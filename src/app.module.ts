@@ -16,6 +16,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     ],
 })
 export class AppModule implements NestModule {
+    /** Registers request correlation middleware for all routes. */
     configure(consumer: MiddlewareConsumer): void {
         consumer.apply(RequestIdMiddleware).forRoutes('*');
     }

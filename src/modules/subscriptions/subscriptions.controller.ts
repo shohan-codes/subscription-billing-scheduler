@@ -33,6 +33,7 @@ import { SubscriptionsService } from './subscriptions.service';
 export class SubscriptionsController {
     constructor(private readonly service: SubscriptionsService) {}
 
+    /** Creates a subscription from a validated request. */
     @Post()
     @ApiRoute({
         summary: 'Create a subscription',
@@ -47,6 +48,7 @@ export class SubscriptionsController {
         return this.service.create(request);
     }
 
+    /** Updates allowed subscription fields with optimistic concurrency. */
     @Patch(':id')
     @ApiRoute({
         summary: 'Update a subscription',
@@ -63,6 +65,7 @@ export class SubscriptionsController {
         return this.service.update(params.id, request);
     }
 
+    /** Recovers retryable or explicitly unblocked subscription billing state. */
     @Post(':id/billing-retry')
     @HttpCode(HttpStatus.ACCEPTED)
     @UseGuards(OperatorGuard)
@@ -80,6 +83,7 @@ export class SubscriptionsController {
         return this.service.billingRetry(params.id, request);
     }
 
+    /** Pauses an active subscription. */
     @Post(':id/pause')
     @HttpCode(HttpStatus.OK)
     @ApiRoute({
@@ -95,6 +99,7 @@ export class SubscriptionsController {
         return this.service.pause(params.id);
     }
 
+    /** Resumes a paused subscription. */
     @Post(':id/resume')
     @HttpCode(HttpStatus.OK)
     @ApiRoute({
@@ -110,6 +115,7 @@ export class SubscriptionsController {
         return this.service.resume(params.id);
     }
 
+    /** Cancels an active or paused subscription terminally. */
     @Post(':id/cancel')
     @HttpCode(HttpStatus.OK)
     @ApiRoute({
@@ -125,6 +131,7 @@ export class SubscriptionsController {
         return this.service.cancel(params.id);
     }
 
+    /** Lists subscriptions with filters and cursor pagination. */
     @Get()
     @ApiRoute({
         summary: 'List subscriptions',
@@ -137,6 +144,7 @@ export class SubscriptionsController {
         return this.service.list(request);
     }
 
+    /** Retrieves a subscription with its latest invoice summary. */
     @Get(':id')
     @ApiRoute({
         summary: 'Get a subscription',
