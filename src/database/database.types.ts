@@ -17,12 +17,8 @@ type NullableTimestampValue = ColumnType<
     Date | string | null | undefined,
     Date | string | null
 >;
-type NumericValue = ColumnType<string, string | number, string | number>;
-type GeneratedNumericValue = ColumnType<
-    string,
-    string | number | undefined,
-    string | number
->;
+type NumericValue = ColumnType<string, string, string>;
+type GeneratedNumericValue = ColumnType<string, string | undefined, string>;
 type GeneratedTimestampValue = ColumnType<
     Date,
     Date | string | undefined,

@@ -14,6 +14,8 @@ export interface EnvironmentVariables {
     DATABASE_CONNECTION_TIMEOUT_MS: number;
     SWAGGER_ENABLED: boolean;
     SWAGGER_PATH: string;
+    OPERATOR_ID?: string;
+    OPERATOR_TOKEN?: string;
     BILLING_CRON_ENABLED: boolean;
     BILLING_CRON_EXPRESSION: string;
     BILLING_TIMEZONE: string;
@@ -28,12 +30,7 @@ export interface EnvironmentVariables {
     BILLING_RUN_ON_STARTUP: boolean;
 }
 
-/**
- * Validates and normalizes env values before Nest builds the application graph.
- *
- * - Applies defaults and converts raw strings to required runtime types.
- * - Fails startup on invalid values, ranges, or cross-field invariants.
- */
+/** Validates and normalizes environment values before application startup. */
 export function validateEnvironment(
     input: Record<string, unknown>,
 ): EnvironmentVariables {
@@ -86,6 +83,7 @@ export function validateEnvironment(
             nodeEnv !== 'production',
         ),
         SWAGGER_PATH: pathSegment(input, 'SWAGGER_PATH', 'docs'),
+        ...operatorCredentials(input),
         BILLING_CRON_ENABLED: booleanValue(input, 'BILLING_CRON_ENABLED', true),
         BILLING_CRON_EXPRESSION: cronExpression(
             input,
@@ -133,6 +131,7 @@ export function validateEnvironment(
     };
 }
 
+/** Reads a scalar environment value as a trimmed string. */
 function raw(input: Record<string, unknown>, key: string): string | undefined {
     const value = input[key];
     if (value === undefined || value === null || value === '') return undefined;
@@ -146,12 +145,14 @@ function raw(input: Record<string, unknown>, key: string): string | undefined {
     return String(value).trim();
 }
 
+/** Reads a required non-empty string environment value. */
 function requiredString(input: Record<string, unknown>, key: string): string {
     const value = raw(input, key);
     if (!value) throw new Error(`${key} is required`);
     return value;
 }
 
+/** Reads an optional string environment value. */
 function optionalString(
     input: Record<string, unknown>,
     key: string,
@@ -159,6 +160,7 @@ function optionalString(
     return raw(input, key);
 }
 
+/** Reads and bounds an integer environment value. */
 function integer(
     input: Record<string, unknown>,
     key: string,
@@ -176,6 +178,7 @@ function integer(
     return parsed;
 }
 
+/** Reads a boolean environment value with a fallback. */
 function booleanValue(
     input: Record<string, unknown>,
     key: string,
@@ -188,6 +191,7 @@ function booleanValue(
     throw new Error(`${key} must be true/false or 1/0`);
 }
 
+/** Reads an environment value constrained to an allowed string set. */
 function enumValue<const T extends readonly string[]>(
     input: Record<string, unknown>,
     key: string,
@@ -201,6 +205,30 @@ function enumValue<const T extends readonly string[]>(
     return value;
 }
 
+/** Validates the optional operator identity and token pair. */
+function operatorCredentials(
+    input: Record<string, unknown>,
+): Pick<EnvironmentVariables, 'OPERATOR_ID' | 'OPERATOR_TOKEN'> {
+    const id = optionalString(input, 'OPERATOR_ID');
+    const token = optionalString(input, 'OPERATOR_TOKEN');
+
+    if ((id && !token) || (!id && token)) {
+        throw new Error(
+            'OPERATOR_ID and OPERATOR_TOKEN must be configured together',
+        );
+    }
+    if (!id || !token) return {};
+    if (!/^[A-Za-z0-9._:@-]{1,120}$/.test(id)) {
+        throw new Error('OPERATOR_ID contains an invalid actor ID');
+    }
+    if (token.length < 16 || token.length > 512) {
+        throw new Error('OPERATOR_TOKEN must be between 16 and 512 characters');
+    }
+
+    return { OPERATOR_ID: id, OPERATOR_TOKEN: token };
+}
+
+/** Reads and validates a cron expression. */
 function cronExpression(
     input: Record<string, unknown>,
     key: string,
@@ -212,6 +240,7 @@ function cronExpression(
     return value;
 }
 
+/** Reads and validates an IANA timezone. */
 function timeZone(
     input: Record<string, unknown>,
     key: string,
@@ -228,6 +257,7 @@ function timeZone(
     return value;
 }
 
+/** Reads and validates a URL-safe path segment. */
 function pathSegment(
     input: Record<string, unknown>,
     key: string,

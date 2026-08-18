@@ -1,3 +1,4 @@
+import { ApiHideProperty } from '@nestjs/swagger';
 import { getResponseFields } from '../decorators/api-response-field.decorator';
 
 type ResponseDtoConstructor<TResponse extends ResponseDto<object>> = {
@@ -11,8 +12,10 @@ type ResponseSource<TResponse> =
 export abstract class ResponseDto<
     TSource extends object = Record<string, unknown>,
 > {
+    @ApiHideProperty()
     declare protected readonly __responseSource: TSource;
 
+    /** Maps source values into the declared response DTO fields. */
     static from<TResponse extends ResponseDto<object>>(
         this: ResponseDtoConstructor<TResponse>,
         source: ResponseSource<TResponse>,

@@ -68,10 +68,12 @@ const HTTP_ERROR_CODES: Partial<Record<number, string>> = {
     [HttpStatus.SERVICE_UNAVAILABLE]: 'SERVICE_UNAVAILABLE',
 };
 
+/** Maps an HTTP status to a stable fallback error code. */
 function statusCodeToCode(statusCode: number): string {
     return HTTP_ERROR_CODES[statusCode] ?? `HTTP_${statusCode}`;
 }
 
+/** Checks whether a value is a non-null record. */
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
 }
