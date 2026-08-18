@@ -16,8 +16,8 @@ import {
     SubscriptionStateConflictException,
     SubscriptionVersionConflictException,
 } from './subscriptions.errors';
+import type { InvoiceRecord } from '../invoices/invoices.types';
 import type {
-    InvoiceRecord,
     SubscriptionListQuery,
     SubscriptionRecord,
 } from './subscriptions.types';

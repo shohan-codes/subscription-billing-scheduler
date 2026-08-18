@@ -28,6 +28,10 @@ async function seed(): Promise<void> {
 
         await database.transaction().execute(async (trx) => {
             await trx
+                .deleteFrom('invoice_items')
+                .where('invoice_id', 'in', [...invoiceIds])
+                .execute();
+            await trx
                 .deleteFrom('invoices')
                 .where('subscription_id', 'in', [...subscriptionIds])
                 .execute();
@@ -182,9 +186,31 @@ async function seed(): Promise<void> {
                     },
                 ])
                 .execute();
+
+            await trx
+                .insertInto('invoice_items')
+                .values([
+                    {
+                        id: '33333333-3333-4333-8333-333333333301',
+                        invoice_id: invoiceIds[0],
+                        description: 'Pro Plan - July Snapshot',
+                        quantity: '1.0000',
+                        unit_price: '79.0000',
+                        line_total: '79.0000',
+                    },
+                    {
+                        id: '33333333-3333-4333-8333-333333333302',
+                        invoice_id: invoiceIds[1],
+                        description: 'Pro Plan - August Snapshot',
+                        quantity: '1.0000',
+                        unit_price: '79.0000',
+                        line_total: '79.0000',
+                    },
+                ])
+                .execute();
         });
 
-        console.log('Seeded 7 subscriptions and 2 invoices.');
+        console.log('Seeded 7 subscriptions, 2 invoices, and 2 invoice items.');
         console.log(`Get demo: /api/v1/subscriptions/${subscriptionIds[1]}`);
         console.log(
             'List demo: /api/v1/subscriptions?customerReference=CUST-DEMO-1001',
@@ -197,6 +223,10 @@ async function seed(): Promise<void> {
         );
         console.log(
             `Unblock demo: /api/v1/subscriptions/${subscriptionIds[2]}/billing-retry`,
+        );
+        console.log(`Invoice detail demo: /api/v1/invoices/${invoiceIds[1]}`);
+        console.log(
+            'Invoice list demo: /api/v1/invoices?customerReference=CUST-DEMO-1001',
         );
     } finally {
         await app.close();
