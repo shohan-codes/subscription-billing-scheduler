@@ -46,6 +46,7 @@ export class AppLogger {
             ...(this.context.requestId
                 ? { requestId: this.context.requestId }
                 : {}),
+            ...(this.context.actorId ? { actorId: this.context.actorId } : {}),
             instanceId: this.config.app.instanceId,
         };
     }

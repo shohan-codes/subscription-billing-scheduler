@@ -6,6 +6,7 @@ import { CursorCodec } from './cursor-codec';
 import { ApiExceptionFilter } from './filters/api-exception.filter';
 import { RequestLoggingInterceptor } from './interceptors/request-logging.interceptor';
 import { ResponseEnvelopeInterceptor } from './interceptors/response-envelope.interceptor';
+import { OperatorGuard } from './operator.guard';
 import { RequestContext } from './request-context';
 import { ShutdownState } from './shutdown-state';
 
@@ -14,12 +15,20 @@ import { ShutdownState } from './shutdown-state';
         AppLogger,
         Clock,
         CursorCodec,
+        OperatorGuard,
         RequestContext,
         ShutdownState,
         { provide: APP_INTERCEPTOR, useClass: RequestLoggingInterceptor },
         { provide: APP_INTERCEPTOR, useClass: ResponseEnvelopeInterceptor },
         { provide: APP_FILTER, useClass: ApiExceptionFilter },
     ],
-    exports: [AppLogger, Clock, CursorCodec, RequestContext, ShutdownState],
+    exports: [
+        AppLogger,
+        Clock,
+        CursorCodec,
+        OperatorGuard,
+        RequestContext,
+        ShutdownState,
+    ],
 })
 export class CommonModule {}

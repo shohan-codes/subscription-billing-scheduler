@@ -355,6 +355,20 @@ export class ResumeSubscriptionResponse extends SubscriptionResponse {}
 
 export class CancelSubscriptionResponse extends SubscriptionResponse {}
 
+// ---------- Billing Retry ----------
+
+export class BillingRetrySubscriptionRequest {
+    @ApiPropertyOptional({
+        description: 'Explicitly unblock a permanently blocked subscription',
+        example: true,
+    })
+    @IsOptional()
+    @IsBoolean()
+    unblock?: boolean;
+}
+
+export class BillingRetrySubscriptionResponse extends SubscriptionResponse {}
+
 // ---------- Get Subscription ----------
 
 export class GetSubscriptionRequest {

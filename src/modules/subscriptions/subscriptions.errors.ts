@@ -11,6 +11,8 @@ export const SubscriptionErrorCode = {
     VersionConflict: 'SUBSCRIPTION_VERSION_CONFLICT',
     ProcessingClaimActive: 'SUBSCRIPTION_PROCESSING_CLAIM_ACTIVE',
     StateConflict: 'SUBSCRIPTION_STATE_CONFLICT',
+    BillingRecoveryConflict: 'SUBSCRIPTION_BILLING_RECOVERY_CONFLICT',
+    ExplicitUnblockRequired: 'SUBSCRIPTION_UNBLOCK_REQUIRED',
     InvalidState: 'INVALID_SUBSCRIPTION_STATE',
     InvalidDates: 'INVALID_SUBSCRIPTION_DATES',
     InvalidBillingAnchor: 'INVALID_BILLING_ANCHOR',
@@ -60,6 +62,25 @@ export class SubscriptionStateConflictException extends ConflictException {
         super({
             code: SubscriptionErrorCode.StateConflict,
             message,
+        });
+    }
+}
+
+export class SubscriptionBillingRecoveryConflictException extends ConflictException {
+    constructor(message = 'Subscription billing state cannot be recovered') {
+        super({
+            code: SubscriptionErrorCode.BillingRecoveryConflict,
+            message,
+        });
+    }
+}
+
+export class SubscriptionUnblockRequiredException extends ConflictException {
+    constructor() {
+        super({
+            code: SubscriptionErrorCode.ExplicitUnblockRequired,
+            message:
+                'Blocked subscription requires an explicit unblock request',
         });
     }
 }

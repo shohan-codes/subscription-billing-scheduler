@@ -20,6 +20,10 @@ interface SwaggerConfiguration {
     readonly path: string;
 }
 
+interface OperatorConfiguration {
+    readonly credentials: EnvironmentVariables['OPERATOR_CREDENTIALS'];
+}
+
 interface BillingConfiguration {
     readonly cronEnabled: boolean;
     readonly cronExpression: string;
@@ -46,6 +50,7 @@ export class AppConfigService {
     readonly app: AppConfiguration;
     readonly database: DatabaseConfiguration;
     readonly swagger: SwaggerConfiguration;
+    readonly operator: OperatorConfiguration;
     readonly billing: BillingConfiguration;
 
     constructor(config: ConfigService<EnvironmentVariables, true>) {
@@ -69,6 +74,10 @@ export class AppConfigService {
         this.swagger = {
             enabled: config.get('SWAGGER_ENABLED', { infer: true }),
             path: config.get('SWAGGER_PATH', { infer: true }),
+        };
+
+        this.operator = {
+            credentials: config.get('OPERATOR_CREDENTIALS', { infer: true }),
         };
 
         this.billing = {
