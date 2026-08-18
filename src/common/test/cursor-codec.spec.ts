@@ -18,4 +18,17 @@ describe('CursorCodec', () => {
             BadRequestException,
         );
     });
+
+    it('rejects cursors that do not match the expected payload', () => {
+        const cursor = codec.encode({ id: 'sub-1' });
+
+        expect(() =>
+            codec.decodeOrThrow(
+                cursor,
+                (payload): payload is { dueDate: string; id: string } =>
+                    typeof payload.dueDate === 'string' &&
+                    typeof payload.id === 'string',
+            ),
+        ).toThrow(BadRequestException);
+    });
 });
