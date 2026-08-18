@@ -16,6 +16,7 @@ import type {
     SchedulerRunItemRecord,
     SchedulerRunListQuery,
     SchedulerRunRecord,
+    SubscriptionBatchClaimQuery,
 } from './billing-scheduler.types';
 
 @Injectable()
@@ -137,6 +138,79 @@ export class BillingSchedulerRepository {
                 .skipLocked()
                 .execute(),
         );
+    }
+
+    /** Claims one deterministic due batch and persists processing ownership atomically. */
+    claimDueBatch(
+        query: SubscriptionBatchClaimQuery,
+    ): Promise<DueSubscriptionRecord[]> {
+        return this.database.transaction().execute(async (transaction) => {
+            const candidates = await transaction
+                .selectFrom('subscriptions')
+                .selectAll()
+                .where('status', '=', 'active')
+                .where('billing_state', 'in', ['ready', 'retry_wait'])
+                .where('next_billing_date', '<=', query.cutoffDate)
+                .where((eb) =>
+                    eb.or([
+                        eb('billing_retry_at', 'is', null),
+                        eb('billing_retry_at', '<=', query.now),
+                    ]),
+                )
+                .where((eb) =>
+                    eb.or([
+                        eb('processing_run_id', 'is', null),
+                        eb('processing_expires_at', 'is', null),
+                        eb('processing_expires_at', '<=', query.now),
+                    ]),
+                )
+                .where(({ exists, not, selectFrom }) =>
+                    not(
+                        exists(
+                            selectFrom('scheduler_run_items')
+                                .select('id')
+                                .whereRef(
+                                    'subscription_id',
+                                    '=',
+                                    'subscriptions.id',
+                                )
+                                .where('run_id', '=', query.runId),
+                        ),
+                    ),
+                )
+                .orderBy('next_billing_date', 'asc')
+                .orderBy('id', 'asc')
+                .limit(query.limit)
+                .forUpdate()
+                .skipLocked()
+                .execute();
+
+            if (candidates.length === 0) return [];
+
+            const claimed = await transaction
+                .updateTable('subscriptions')
+                .set({
+                    processing_run_id: query.runId,
+                    processing_owner: query.owner,
+                    processing_started_at: query.claimStartedAt,
+                    processing_expires_at: query.claimExpiresAt,
+                })
+                .where(
+                    'id',
+                    'in',
+                    candidates.map((candidate) => candidate.id),
+                )
+                .returningAll()
+                .execute();
+            const claimedById = new Map(
+                claimed.map((subscription) => [subscription.id, subscription]),
+            );
+
+            return candidates.flatMap((candidate) => {
+                const subscription = claimedById.get(candidate.id);
+                return subscription ? [subscription] : [];
+            });
+        });
     }
 
     /** Finalizes a running scheduler record or throws when ownership changed. */

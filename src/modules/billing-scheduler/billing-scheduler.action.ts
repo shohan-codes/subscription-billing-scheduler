@@ -31,6 +31,18 @@ export class BillingSchedulerAction {
         };
     }
 
+    /** Builds a bounded claim owner token for one scheduler run. */
+    createClaimOwner(instanceId: string): string {
+        const token = randomUUID();
+        const maxInstanceLength = 120 - token.length - 1;
+        return `${instanceId.slice(0, maxInstanceLength)}:${token}`;
+    }
+
+    /** Calculates the expiry timestamp for one subscription processing claim. */
+    createClaimExpiry(now: Date, claimSeconds: number): Date {
+        return new Date(now.getTime() + claimSeconds * 1000);
+    }
+
     /** Rejects a trigger that begins after scheduler shutdown has started. */
     validateTriggerAllowedOrThrow(isShuttingDown: boolean): void {
         if (isShuttingDown) throw new SchedulerShuttingDownException();

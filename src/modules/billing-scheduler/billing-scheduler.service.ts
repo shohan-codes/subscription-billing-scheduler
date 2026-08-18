@@ -6,6 +6,7 @@ import { Clock } from '../../common/clock';
 import { ShutdownState } from '../../common/shutdown-state';
 import { CursorCodec } from '../../common/utils/cursor-codec';
 import { AppConfigService } from '../../config/app-config.service';
+import { InvoicesService } from '../invoices/invoices.service';
 import { BillingSchedulerAction } from './billing-scheduler.action';
 import {
     BILLING_SCHEDULER_JOB_NAME,
@@ -50,6 +51,7 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
         private readonly action: BillingSchedulerAction,
         private readonly repository: BillingSchedulerRepository,
         private readonly heartbeat: BillingSchedulerHeartbeat,
+        private readonly invoices: InvoicesService,
         private readonly cursorCodec: CursorCodec,
         private readonly logger: AppLogger,
     ) {}
@@ -200,6 +202,57 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
         }
     }
 
+    /** Claims and processes due subscriptions until the current eligible set is exhausted. */
+    private async processClaimedBatches(
+        run: SchedulerRunRecord,
+        claimOwner: string,
+        counters: SchedulerRunCounters,
+    ): Promise<void> {
+        while (
+            !this.heartbeat.isLeaseLost &&
+            !this.shutdownState.isShuttingDown
+        ) {
+            const now = this.clock.now();
+            const batch = await this.repository.claimDueBatch({
+                cutoffDate: run.cutoff_date,
+                now,
+                limit: this.config.billing.batchSize,
+                runId: run.id,
+                owner: claimOwner,
+                claimStartedAt: now,
+                claimExpiresAt: this.action.createClaimExpiry(
+                    now,
+                    this.config.billing.claimSeconds,
+                ),
+            });
+
+            if (batch.length === 0) return;
+
+            counters.eligibleCount += batch.length;
+            counters.claimedCount += batch.length;
+
+            for (const subscription of batch) {
+                if (
+                    this.heartbeat.isLeaseLost ||
+                    this.shutdownState.isShuttingDown
+                ) {
+                    return;
+                }
+
+                const result = await this.invoices.generateClaimed({
+                    subscriptionId: subscription.id,
+                    runId: run.id,
+                    owner: claimOwner,
+                    cutoffDate: run.cutoff_date,
+                });
+                counters.succeededCount += 1;
+                if (result.result === 'created') {
+                    counters.invoicesCreatedCount += 1;
+                }
+            }
+        }
+    }
+
     /** Coordinates one scheduled or manual trigger around lease ownership and run history. */
     private async coordinate(
         triggerType: SchedulerTriggerType,
@@ -252,6 +305,7 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
         }
 
         let run: SchedulerRunRecord | undefined;
+        const counters: SchedulerRunCounters = { ...EMPTY_COUNTERS };
 
         try {
             run = await this.repository.createRunOrThrow({
@@ -284,6 +338,10 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                 runId: run.id,
                 triggerType,
             });
+            const claimOwner = this.action.createClaimOwner(
+                this.config.app.instanceId,
+            );
+            await this.processClaimedBatches(run, claimOwner, counters);
 
             if (
                 this.heartbeat.isLeaseLost ||
@@ -295,7 +353,7 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                     {
                         status: SchedulerRunStatus.Interrupted,
                         completedAt: this.clock.now(),
-                        counters: EMPTY_COUNTERS,
+                        counters,
                         errorCode: this.heartbeat.isLeaseLost
                             ? 'SCHEDULER_LEASE_LOST'
                             : 'SHUTDOWN_INTERRUPTED',
@@ -310,9 +368,9 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                 run.id,
                 lease.owner_token,
                 {
-                    status: this.action.resolveCompletedStatus(EMPTY_COUNTERS),
+                    status: this.action.resolveCompletedStatus(counters),
                     completedAt: this.clock.now(),
-                    counters: EMPTY_COUNTERS,
+                    counters,
                 },
             );
         } catch (error) {
@@ -325,7 +383,7 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                 {
                     status: SchedulerRunStatus.Failed,
                     completedAt: this.clock.now(),
-                    counters: EMPTY_COUNTERS,
+                    counters,
                     errorCode: failure.code,
                     errorMessage: failure.message,
                 },
