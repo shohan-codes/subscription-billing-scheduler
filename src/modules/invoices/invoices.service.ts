@@ -18,6 +18,7 @@ import type {
     InvoiceCatchUpResult,
     InvoiceGenerationResult,
     InvoiceListCursor,
+    InvoiceRecord,
 } from './invoices.types';
 
 @Injectable()
@@ -123,7 +124,7 @@ export class InvoicesService {
             );
 
             const beforeBillingDate = subscription.next_billing_date;
-            const invoices = [];
+            const invoices: InvoiceRecord[] = [];
             let periodsProcessed = 0;
             let invoicesCreated = 0;
 
