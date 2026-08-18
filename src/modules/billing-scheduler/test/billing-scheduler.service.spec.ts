@@ -77,6 +77,7 @@ function createService(acquired: boolean, shuttingDown = false) {
             ),
             validateTriggerAllowedOrThrow: jest.fn(),
             resolveCompletedStatus: jest.fn(() => SchedulerRunStatus.Completed),
+            classifyItemFailure: jest.fn(),
             resolveSafeRunFailure: jest.fn(() => ({
                 code: 'SCHEDULER_RUN_FAILED',
                 message: 'Billing run failed unexpectedly',
@@ -98,7 +99,11 @@ function createService(acquired: boolean, shuttingDown = false) {
         } as unknown as BillingSchedulerHeartbeat,
         { generateClaimed: jest.fn() } as unknown as InvoicesService,
         {} as CursorCodec,
-        { info, error: jest.fn() } as unknown as AppLogger,
+        {
+            info,
+            warn: jest.fn(),
+            error: jest.fn(),
+        } as unknown as AppLogger,
     );
 
     return {

@@ -239,15 +239,65 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                     return;
                 }
 
-                const result = await this.invoices.generateClaimed({
-                    subscriptionId: subscription.id,
-                    runId: run.id,
-                    owner: claimOwner,
-                    cutoffDate: run.cutoff_date,
-                });
-                counters.succeededCount += 1;
-                if (result.result === 'created') {
-                    counters.invoicesCreatedCount += 1;
+                const itemStartedAt = this.clock.now();
+
+                try {
+                    const result = await this.invoices.generateClaimed({
+                        subscriptionId: subscription.id,
+                        runId: run.id,
+                        owner: claimOwner,
+                        cutoffDate: run.cutoff_date,
+                    });
+                    counters.succeededCount += 1;
+                    if (result.result === 'created') {
+                        counters.invoicesCreatedCount += 1;
+                    }
+                } catch (error) {
+                    const completedAt = this.clock.now();
+                    const failure = this.action.classifyItemFailure(
+                        error,
+                        subscription.billing_failure_count,
+                        completedAt,
+                    );
+
+                    if (
+                        failure.type === 'lease_lost' ||
+                        failure.type === 'shutdown_interrupted'
+                    ) {
+                        counters.skippedCount += 1;
+                        this.logger.warn('billing.item.skipped', {
+                            runId: run.id,
+                            subscriptionId: subscription.id,
+                            errorCode: failure.code,
+                        });
+                        continue;
+                    }
+
+                    const recorded = await this.repository.recordItemFailure({
+                        subscriptionId: subscription.id,
+                        runId: run.id,
+                        owner: claimOwner,
+                        beforeBillingDate: subscription.next_billing_date,
+                        startedAt: itemStartedAt,
+                        completedAt,
+                        failure,
+                    });
+
+                    if (recorded) {
+                        counters.failedCount += 1;
+                        this.logger.warn('billing.item.failed', {
+                            runId: run.id,
+                            subscriptionId: subscription.id,
+                            errorCode: failure.code,
+                        });
+                    } else {
+                        counters.skippedCount += 1;
+                        this.logger.warn('billing.item.claim_lost', {
+                            runId: run.id,
+                            subscriptionId: subscription.id,
+                            errorCode: 'SUBSCRIPTION_CLAIM_LOST',
+                        });
+                    }
                 }
             }
         }
