@@ -11,6 +11,7 @@ import { AppLogger } from './app-logger';
 import { RequestContext } from './request-context';
 
 const BEARER_PREFIX = 'Bearer ';
+// ponytail: static operator tokens cover this service boundary; replace with upstream identity/roles when available.
 
 /** Authorizes operator/admin requests and records the requesting actor. */
 @Injectable()

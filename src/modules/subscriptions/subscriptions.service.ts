@@ -73,6 +73,7 @@ export class SubscriptionsService {
         const subscription = await this.repository.recoverBillingStateOrThrow(
             id,
             current.billing_state,
+            current.version,
         );
 
         return BillingRetrySubscriptionResponse.from(subscription);

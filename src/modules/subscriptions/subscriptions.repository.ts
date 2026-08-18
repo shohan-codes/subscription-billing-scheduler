@@ -120,6 +120,7 @@ export class SubscriptionsRepository {
     async recoverBillingStateOrThrow(
         id: string,
         expectedState: SubscriptionBillingState,
+        expectedVersion: number,
     ): Promise<SubscriptionRecord> {
         const subscription = await this.database
             .updateTable('subscriptions')
@@ -130,6 +131,7 @@ export class SubscriptionsRepository {
             })
             .where('id', '=', id)
             .where('billing_state', '=', expectedState)
+            .where('version', '=', expectedVersion)
             .returningAll()
             .executeTakeFirst();
 
