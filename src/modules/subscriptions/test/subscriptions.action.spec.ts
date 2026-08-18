@@ -120,6 +120,41 @@ describe('SubscriptionsAction', () => {
         ).not.toThrow();
     });
 
+    it('preserves a normal monthly billing anchor', () => {
+        expect(action.nextMonthlyBillingDate('2026-01-15', 15, false)).toBe(
+            '2026-02-15',
+        );
+    });
+
+    it('clamps short months and restores the original billing anchor later', () => {
+        const february = action.nextMonthlyBillingDate('2026-01-31', 31, false);
+        const march = action.nextMonthlyBillingDate(february, 31, false);
+
+        expect(february).toBe('2026-02-28');
+        expect(march).toBe('2026-03-31');
+    });
+
+    it('uses February 29 for a leap-year billing anchor', () => {
+        expect(action.nextMonthlyBillingDate('2028-01-31', 31, false)).toBe(
+            '2028-02-29',
+        );
+    });
+
+    it('preserves an explicit month-end billing anchor', () => {
+        expect(action.nextMonthlyBillingDate('2026-02-28', 28, true)).toBe(
+            '2026-03-31',
+        );
+        expect(action.nextMonthlyBillingDate('2026-04-30', 30, true)).toBe(
+            '2026-05-31',
+        );
+    });
+
+    it('rolls a December billing date into the next year', () => {
+        expect(action.nextMonthlyBillingDate('2026-12-31', 31, false)).toBe(
+            '2027-01-31',
+        );
+    });
+
     it('resolves valid lifecycle transitions', () => {
         expect(action.resolvePauseStatusOrThrow(currentSubscription())).toBe(
             'paused',

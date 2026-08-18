@@ -34,6 +34,24 @@ export class SubscriptionsAction {
         );
     }
 
+    /** Calculates the next monthly billing date from the preserved subscription anchor. */
+    nextMonthlyBillingDate(
+        currentDate: string,
+        anchorDay: number,
+        anchorIsMonthEnd: boolean,
+    ): string {
+        const [year, month] = currentDate.split('-').map(Number);
+        const nextYear = month === 12 ? year + 1 : year;
+        const nextMonth = month === 12 ? 1 : month + 1;
+        const monthEnd = daysInMonth(nextYear, nextMonth);
+        const day = anchorIsMonthEnd ? monthEnd : Math.min(anchorDay, monthEnd);
+
+        const formattedMonth = String(nextMonth).padStart(2, '0');
+        const formattedDay = String(day).padStart(2, '0');
+
+        return `${nextYear}-${formattedMonth}-${formattedDay}`;
+    }
+
     /** Resolves the paused status for a valid pause transition. */
     resolvePauseStatusOrThrow(current: SubscriptionRecord): SubscriptionStatus {
         if (current.status !== SubscriptionStatus.Active) {
