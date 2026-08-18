@@ -1,7 +1,6 @@
 import type { AppLogger } from '../../../common/app-logger';
 import type { Clock } from '../../../common/clock';
 import type { AppConfigService } from '../../../config/app-config.service';
-import type { BillingSchedulerAction } from '../billing-scheduler.action';
 import { BillingSchedulerService } from '../billing-scheduler.service';
 import type { BillingSchedulerRepository } from '../billing-scheduler.repository';
 import type { SchedulerLeaseRequest } from '../billing-scheduler.types';
@@ -33,7 +32,7 @@ function createService(acquired: boolean) {
         { now: jest.fn(() => request.acquiredAt) } as unknown as Clock,
         {
             createLeaseRequest: jest.fn(() => request),
-        } as unknown as BillingSchedulerAction,
+        },
         {
             acquireLease,
             releaseLease,
