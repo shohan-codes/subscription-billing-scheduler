@@ -27,8 +27,8 @@ import {
     SubscriptionBillingState,
     SubscriptionStatus,
 } from './subscriptions.constant';
+import type { InvoiceRecord } from '../invoices/invoices.types';
 import type {
-    InvoiceRecord,
     SubscriptionListResult,
     SubscriptionRecord,
     SubscriptionWithLatestInvoice,
