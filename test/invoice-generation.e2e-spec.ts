@@ -5,6 +5,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { DATABASE, type DatabaseClient } from '../src/database/database.module';
+import { InvoicePeriodConflictException } from '../src/modules/invoices/invoices.errors';
 import { InvoicesService } from '../src/modules/invoices/invoices.service';
 
 type CreateSubscriptionBody = {
@@ -117,6 +118,7 @@ describe('Transactional invoice generation (e2e)', () => {
             tax_total: '0.0000',
             discount_total: '0.0000',
             total: '49.0000',
+            idempotency_key: `invoice:${fixture.subscriptionId}:2026-01-31:2026-02-28`,
             generated_by_run_id: fixture.runId,
         });
 
@@ -168,7 +170,7 @@ describe('Transactional invoice generation (e2e)', () => {
         });
     });
 
-    it('rolls back schedule and claim changes when invoice persistence fails', async () => {
+    it('rolls back schedule and claim changes when duplicate verification fails', async () => {
         const fixture = await createClaimedFixture();
         const existingInvoiceId = randomUUID();
 
@@ -183,7 +185,7 @@ describe('Transactional invoice generation (e2e)', () => {
                 billing_period_end: '2026-02-28',
                 issue_date: '2026-01-31',
                 status: 'issued',
-                currency: 'USD',
+                currency: 'EUR',
                 subtotal: '49.0000',
                 tax_total: '0.0000',
                 discount_total: '0.0000',
@@ -200,7 +202,7 @@ describe('Transactional invoice generation (e2e)', () => {
                 owner: fixture.owner,
                 cutoffDate: '2026-01-31',
             }),
-        ).rejects.toBeDefined();
+        ).rejects.toBeInstanceOf(InvoicePeriodConflictException);
 
         const subscription = await database
             .selectFrom('subscriptions')

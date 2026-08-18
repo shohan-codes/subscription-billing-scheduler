@@ -141,13 +141,35 @@ export class InvoiceTransactionRepository {
             .executeTakeFirst();
     }
 
-    /** Persists an invoice snapshot inside the active transaction. */
-    createInvoiceOrThrow(invoice: InvoiceInsert): Promise<InvoiceRecord> {
+    /** Persists an invoice snapshot and returns undefined for a uniqueness conflict. */
+    createInvoice(invoice: InvoiceInsert): Promise<InvoiceRecord | undefined> {
         return this.database
             .insertInto('invoices')
             .values(invoice)
+            .onConflict((conflict) => conflict.doNothing())
             .returningAll()
-            .executeTakeFirstOrThrow();
+            .executeTakeFirst();
+    }
+
+    /** Finds an invoice by the expected period first, then by the stable idempotency key. */
+    async findDuplicateCandidate(
+        expected: InvoiceInsert,
+    ): Promise<InvoiceRecord | undefined> {
+        const periodInvoice = await this.database
+            .selectFrom('invoices')
+            .selectAll()
+            .where('subscription_id', '=', expected.subscription_id)
+            .where('billing_period_start', '=', expected.billing_period_start)
+            .where('billing_period_end', '=', expected.billing_period_end)
+            .executeTakeFirst();
+
+        if (periodInvoice) return periodInvoice;
+
+        return this.database
+            .selectFrom('invoices')
+            .selectAll()
+            .where('idempotency_key', '=', expected.idempotency_key)
+            .executeTakeFirst();
     }
 
     /** Persists an invoice line-item snapshot inside the active transaction. */

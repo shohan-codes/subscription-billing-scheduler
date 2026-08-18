@@ -47,11 +47,24 @@ export class InvoicesService {
                 subscription,
                 request,
             );
-            const invoice = await transaction.createInvoiceOrThrow(
+            const createdInvoice = await transaction.createInvoice(
                 draft.invoice,
             );
+            const duplicateCandidate = createdInvoice
+                ? undefined
+                : await transaction.findDuplicateCandidate(draft.invoice);
+            const invoice =
+                createdInvoice ??
+                this.action.resolveDuplicateOrThrow(
+                    duplicateCandidate,
+                    draft.invoice,
+                );
+            const result = createdInvoice ? 'created' : 'duplicate_confirmed';
 
-            await transaction.createItemOrThrow(draft.item);
+            if (createdInvoice) {
+                await transaction.createItemOrThrow(draft.item);
+            }
+
             await transaction.advanceSubscriptionOrThrow(
                 subscription.id,
                 request.runId,
@@ -66,10 +79,10 @@ export class InvoicesService {
                 id: randomUUID(),
                 run_id: request.runId,
                 subscription_id: subscription.id,
-                result: 'success',
+                result: createdInvoice ? 'success' : 'duplicate_confirmed',
                 before_billing_date: subscription.next_billing_date,
                 after_billing_date: draft.nextBillingDate,
-                invoices_created: 1,
+                invoices_created: createdInvoice ? 1 : 0,
                 error_type: null,
                 error_code: null,
                 error_message: null,
@@ -83,7 +96,7 @@ export class InvoicesService {
             );
 
             return {
-                result: 'created',
+                result,
                 invoice,
                 nextBillingDate: updated.next_billing_date,
             };
