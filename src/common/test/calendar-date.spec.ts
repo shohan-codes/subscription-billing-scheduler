@@ -1,4 +1,4 @@
-import { daysInMonth } from '../billing-date';
+import { daysInMonth } from '../utils/calendar-date';
 
 describe('billing date utilities', () => {
     it('handles short months and leap years', () => {

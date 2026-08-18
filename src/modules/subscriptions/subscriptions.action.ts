@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { daysInMonth } from '../../common/billing-date';
+import { daysInMonth } from '../../common/utils/calendar-date';
 import {
     SubscriptionBillingState,
     SubscriptionStatus,

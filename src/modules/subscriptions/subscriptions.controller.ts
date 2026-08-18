@@ -11,7 +11,7 @@ import {
     UseGuards,
 } from '@nestjs/common';
 import { ApiRoute } from '../../common/decorators/api-route.decorator';
-import { OperatorGuard } from '../../common/operator.guard';
+import { OperatorGuard } from '../../common/guards/operator.guard';
 import {
     BillingRetrySubscriptionRequest,
     BillingRetrySubscriptionResponse,

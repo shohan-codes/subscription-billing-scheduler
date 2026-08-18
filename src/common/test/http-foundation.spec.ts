@@ -13,7 +13,7 @@ import request from 'supertest';
 import { AppConfigModule } from '../../config/app-config.module';
 import { CommonModule } from '../common.module';
 import { SkipEnvelope } from '../decorators/skip-envelope.decorator';
-import { RequestIdMiddleware } from '../request-id.middleware';
+import { RequestIdMiddleware } from '../middleware/request-id.middleware';
 
 process.env.DATABASE_URL ??=
     'postgresql://billing:billing@localhost:5432/subscription_billing';

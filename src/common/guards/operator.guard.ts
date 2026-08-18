@@ -6,9 +6,9 @@ import {
     Injectable,
     UnauthorizedException,
 } from '@nestjs/common';
-import { AppConfigService } from '../config/app-config.service';
-import { AppLogger } from './app-logger';
-import { RequestContext } from './request-context';
+import { AppConfigService } from '../../config/app-config.service';
+import { AppLogger } from '../app-logger';
+import { RequestContext } from '../request-context';
 
 const BEARER_PREFIX = 'Bearer ';
 // ponytail: static operator tokens cover this service boundary; replace with upstream identity/roles when available.

@@ -2,7 +2,7 @@ import type { ExecutionContext } from '@nestjs/common';
 import { UnauthorizedException } from '@nestjs/common';
 import type { AppConfigService } from '../../config/app-config.service';
 import type { AppLogger } from '../app-logger';
-import { OperatorGuard } from '../operator.guard';
+import { OperatorGuard } from '../guards/operator.guard';
 import type { RequestContext } from '../request-context';
 
 const TOKEN = '0123456789abcdef0123456789abcdef';
