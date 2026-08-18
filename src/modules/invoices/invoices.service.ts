@@ -1,6 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { isUUID } from 'class-validator';
+import { Clock } from '../../common/clock';
 import { CursorCodec } from '../../common/utils/cursor-codec';
+import { InvoicesAction } from './invoices.action';
 import { INVOICE_DATE_PATTERN } from './invoices.constant';
 import {
     GetInvoiceRequest,
@@ -9,14 +12,83 @@ import {
     ListInvoicesResponse,
 } from './invoices.dto';
 import { InvoicesRepository } from './invoices.repository';
-import type { InvoiceListCursor } from './invoices.types';
+import type {
+    GenerateClaimedInvoiceRequest,
+    InvoiceGenerationResult,
+    InvoiceListCursor,
+} from './invoices.types';
 
 @Injectable()
 export class InvoicesService {
     constructor(
         private readonly repository: InvoicesRepository,
+        private readonly action: InvoicesAction,
         private readonly cursorCodec: CursorCodec,
+        private readonly clock: Clock,
     ) {}
+
+    /** Processes one claimed subscription in a single invoice transaction. */
+    generateClaimed(
+        request: GenerateClaimedInvoiceRequest,
+    ): Promise<InvoiceGenerationResult> {
+        const startedAt = this.clock.now();
+
+        return this.repository.withTransaction(async (transaction) => {
+            const subscription =
+                await transaction.findSubscriptionForUpdateOrThrow(
+                    request.subscriptionId,
+                );
+            this.action.validateClaimedSubscriptionOrThrow(
+                subscription,
+                request,
+                startedAt,
+            );
+            const draft = this.action.buildGenerationDraft(
+                subscription,
+                request,
+            );
+            const invoice = await transaction.createInvoiceOrThrow(
+                draft.invoice,
+            );
+
+            await transaction.createItemOrThrow(draft.item);
+            await transaction.advanceSubscriptionOrThrow(
+                subscription.id,
+                request.runId,
+                request.owner,
+                subscription.next_billing_date,
+                draft.nextBillingDate,
+            );
+
+            const completedAt = this.clock.now();
+
+            await transaction.createRunItemOrThrow({
+                id: randomUUID(),
+                run_id: request.runId,
+                subscription_id: subscription.id,
+                result: 'success',
+                before_billing_date: subscription.next_billing_date,
+                after_billing_date: draft.nextBillingDate,
+                invoices_created: 1,
+                error_type: null,
+                error_code: null,
+                error_message: null,
+                started_at: startedAt,
+                completed_at: completedAt,
+            });
+            const updated = await transaction.clearClaimOrThrow(
+                subscription.id,
+                request.runId,
+                request.owner,
+            );
+
+            return {
+                result: 'created',
+                invoice,
+                nextBillingDate: updated.next_billing_date,
+            };
+        });
+    }
 
     /** Retrieves an invoice with its persisted line-item snapshots and scheduler run reference. */
     async get(request: GetInvoiceRequest): Promise<GetInvoiceResponse> {
