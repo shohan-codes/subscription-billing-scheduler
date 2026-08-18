@@ -5,6 +5,11 @@ import { BILLING_SCHEDULER_JOB_NAME } from '../billing-scheduler.constant';
 import { BillingSchedulerCron } from '../billing-scheduler.cron';
 import type { BillingSchedulerService } from '../billing-scheduler.service';
 
+interface CronJobMock {
+    fireOnTick: () => Promise<void> | void;
+    stop: () => void;
+}
+
 /** Builds the minimal scheduler configuration needed by cron registration tests. */
 function config(enabled: boolean): AppConfigService {
     return {
@@ -50,10 +55,9 @@ describe('BillingSchedulerCron', () => {
             BILLING_SCHEDULER_JOB_NAME,
             expect.any(Object),
         );
-        const job = addCronJob.mock.calls[0]?.[1] as {
-            fireOnTick: () => Promise<void> | void;
-            stop: () => void;
-        };
+        const call = addCronJob.mock.calls[0] as
+            [string, CronJobMock] | undefined;
+        const job = call?.[1] as CronJobMock;
         await job.fireOnTick();
         job.stop();
 
