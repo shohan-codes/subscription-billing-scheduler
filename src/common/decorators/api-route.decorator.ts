@@ -18,6 +18,7 @@ export type ApiRouteOptions = {
     notFound?: boolean;
     conflict?: boolean;
     unprocessable?: boolean;
+    serviceUnavailable?: boolean;
     responseType?: Type<unknown>;
     responseIsArray?: boolean;
     dataSchema?: OpenApiSchema;
@@ -33,6 +34,7 @@ export const ApiRoute = ({
     notFound = false,
     conflict = false,
     unprocessable = false,
+    serviceUnavailable = false,
     responseType,
     responseIsArray = false,
     dataSchema,
@@ -68,6 +70,9 @@ export const ApiRoute = ({
     if (conflict) decorators.push(apiErrorResponse(409, 'Conflict'));
     if (unprocessable) {
         decorators.push(apiErrorResponse(422, 'Business validation failed'));
+    }
+    if (serviceUnavailable) {
+        decorators.push(apiErrorResponse(503, 'Service unavailable'));
     }
 
     decorators.push(

@@ -3,7 +3,10 @@ import {
     BILLING_SCHEDULER_JOB_NAME,
     SchedulerRunStatus,
 } from '../billing-scheduler.constant';
-import { SchedulerLeaseUnavailableException } from '../billing-scheduler.errors';
+import {
+    SchedulerLeaseUnavailableException,
+    SchedulerShuttingDownException,
+} from '../billing-scheduler.errors';
 import type { SchedulerRunRecord } from '../billing-scheduler.types';
 
 describe('BillingSchedulerAction', () => {
@@ -19,6 +22,12 @@ describe('BillingSchedulerAction', () => {
         expect(first.ownerToken).toMatch(/^instance-a:/);
         expect(first.leaseExpiresAt.toISOString()).toBe(
             '2026-08-18T10:02:00.000Z',
+        );
+    });
+
+    it('rejects new triggers after scheduler shutdown begins', () => {
+        expect(() => action.validateTriggerAllowedOrThrow(true)).toThrow(
+            SchedulerShuttingDownException,
         );
     });
 

@@ -1,4 +1,8 @@
-import { Injectable, type OnModuleInit } from '@nestjs/common';
+import {
+    Injectable,
+    type BeforeApplicationShutdown,
+    type OnModuleInit,
+} from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
 import { AppLogger } from '../../common/app-logger';
@@ -8,7 +12,11 @@ import { BillingSchedulerService } from './billing-scheduler.service';
 
 /** Registers the configured billing cron trigger and delegates execution to the coordinator service. */
 @Injectable()
-export class BillingSchedulerCron implements OnModuleInit {
+export class BillingSchedulerCron
+    implements OnModuleInit, BeforeApplicationShutdown
+{
+    private job?: CronJob;
+
     constructor(
         private readonly config: AppConfigService,
         private readonly registry: SchedulerRegistry,
@@ -25,19 +33,27 @@ export class BillingSchedulerCron implements OnModuleInit {
             return;
         }
 
-        const job = CronJob.from({
+        this.job = CronJob.from({
             cronTime: this.config.billing.cronExpression,
             onTick: () => void this.service.triggerScheduled(),
             start: false,
             timeZone: this.config.billing.timezone,
         });
 
-        this.registry.addCronJob(BILLING_SCHEDULER_JOB_NAME, job);
-        job.start();
+        this.registry.addCronJob(BILLING_SCHEDULER_JOB_NAME, this.job);
+        this.job.start();
         this.logger.info('billing.cron.registered', {
             jobName: BILLING_SCHEDULER_JOB_NAME,
             cronExpression: this.config.billing.cronExpression,
             timezone: this.config.billing.timezone,
+        });
+    }
+
+    /** Stops the registered cron task before application teardown begins. */
+    beforeApplicationShutdown(): void {
+        void this.job?.stop();
+        this.logger.info('billing.cron.stopped', {
+            jobName: BILLING_SCHEDULER_JOB_NAME,
         });
     }
 }

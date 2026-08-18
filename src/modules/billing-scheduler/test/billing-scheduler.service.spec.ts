@@ -1,4 +1,5 @@
 import type { AppLogger } from '../../../common/app-logger';
+import type { ShutdownState } from '../../../common/shutdown-state';
 import type { CursorCodec } from '../../../common/utils/cursor-codec';
 import type { AppConfigService } from '../../../config/app-config.service';
 import { SchedulerRunStatus } from '../billing-scheduler.constant';
@@ -20,7 +21,7 @@ const request: SchedulerLeaseRequest = {
 };
 
 /** Builds the scheduler service with focused mocks for coordinator tests. */
-function createService(acquired: boolean) {
+function createService(acquired: boolean, shuttingDown = false) {
     const acquireLease = jest.fn().mockResolvedValue(
         acquired
             ? {
@@ -46,6 +47,7 @@ function createService(acquired: boolean) {
     const releaseLease = jest.fn().mockResolvedValue(true);
     const start = jest.fn();
     const stop = jest.fn();
+    const beginShutdown = jest.fn();
     const info = jest.fn();
     const service = new BillingSchedulerService(
         {
@@ -60,7 +62,13 @@ function createService(acquired: boolean) {
             dateInTimeZone: jest.fn(() => '2026-08-18'),
         },
         {
+            isShuttingDown: shuttingDown,
+            beginShutdown,
+            beforeApplicationShutdown: jest.fn(),
+        } as unknown as ShutdownState,
+        {
             createLeaseRequest: jest.fn(() => request),
+            validateTriggerAllowedOrThrow: jest.fn(),
             resolveCompletedStatus: jest.fn(() => SchedulerRunStatus.Completed),
             resolveSafeRunFailure: jest.fn(() => ({
                 code: 'SCHEDULER_RUN_FAILED',
@@ -92,11 +100,28 @@ function createService(acquired: boolean) {
         releaseLease,
         start,
         stop,
+        beginShutdown,
         info,
     };
 }
 
 describe('BillingSchedulerService', () => {
+    it('does not start scheduled work after shutdown begins', async () => {
+        const { service, acquireLease } = createService(true, true);
+
+        await service.triggerScheduled();
+
+        expect(acquireLease).not.toHaveBeenCalled();
+    });
+
+    it('marks shutdown and completes lifecycle waiting when no work is active', async () => {
+        const { service, beginShutdown } = createService(true);
+
+        await service.beforeApplicationShutdown();
+
+        expect(beginShutdown).toHaveBeenCalledTimes(1);
+    });
+
     it('persists lock contention without releasing an unowned lease', async () => {
         const { service, createRunOrThrow, releaseLease, info } =
             createService(false);
