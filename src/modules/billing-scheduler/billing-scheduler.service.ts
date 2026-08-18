@@ -264,6 +264,20 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                         failure.type === 'lease_lost' ||
                         failure.type === 'shutdown_interrupted'
                     ) {
+                        await this.repository.createRunItemOrThrow({
+                            id: randomUUID(),
+                            run_id: run.id,
+                            subscription_id: subscription.id,
+                            result: 'skipped',
+                            before_billing_date: subscription.next_billing_date,
+                            after_billing_date: null,
+                            invoices_created: 0,
+                            error_type: null,
+                            error_code: failure.code,
+                            error_message: failure.message,
+                            started_at: itemStartedAt,
+                            completed_at: completedAt,
+                        });
                         counters.skippedCount += 1;
                         this.logger.warn('billing.item.skipped', {
                             runId: run.id,
