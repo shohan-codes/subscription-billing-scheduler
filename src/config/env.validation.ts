@@ -222,9 +222,7 @@ function operatorCredentials(
         throw new Error('OPERATOR_ID contains an invalid actor ID');
     }
     if (token.length < 16 || token.length > 512) {
-        throw new Error(
-            'OPERATOR_TOKEN must be between 16 and 512 characters',
-        );
+        throw new Error('OPERATOR_TOKEN must be between 16 and 512 characters');
     }
 
     return { OPERATOR_ID: id, OPERATOR_TOKEN: token };

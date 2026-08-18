@@ -25,9 +25,7 @@ describe('validateEnvironment', () => {
         });
 
         expect(env.OPERATOR_ID).toBe('operator-1');
-        expect(env.OPERATOR_TOKEN).toBe(
-            '0123456789abcdef0123456789abcdef',
-        );
+        expect(env.OPERATOR_TOKEN).toBe('0123456789abcdef0123456789abcdef');
 
         expect(() =>
             validateEnvironment({
