@@ -10,6 +10,7 @@ export const SubscriptionErrorCode = {
     EmptyUpdate: 'EMPTY_SUBSCRIPTION_UPDATE',
     VersionConflict: 'SUBSCRIPTION_VERSION_CONFLICT',
     ProcessingClaimActive: 'SUBSCRIPTION_PROCESSING_CLAIM_ACTIVE',
+    StateConflict: 'SUBSCRIPTION_STATE_CONFLICT',
     InvalidState: 'INVALID_SUBSCRIPTION_STATE',
     InvalidDates: 'INVALID_SUBSCRIPTION_DATES',
     InvalidBillingAnchor: 'INVALID_BILLING_ANCHOR',
@@ -48,6 +49,17 @@ export class SubscriptionProcessingClaimActiveException extends ConflictExceptio
             code: SubscriptionErrorCode.ProcessingClaimActive,
             message:
                 'Subscription schedule cannot be changed while processing is active',
+        });
+    }
+}
+
+export class SubscriptionStateConflictException extends ConflictException {
+    constructor(
+        message = 'Subscription state changed or transition is not allowed',
+    ) {
+        super({
+            code: SubscriptionErrorCode.StateConflict,
+            message,
         });
     }
 }

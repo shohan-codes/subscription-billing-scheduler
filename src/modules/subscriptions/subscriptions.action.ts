@@ -11,6 +11,7 @@ import {
     InvalidSubscriptionDatesException,
     InvalidSubscriptionStateException,
     SubscriptionProcessingClaimActiveException,
+    SubscriptionStateConflictException,
     SubscriptionVersionConflictException,
 } from './subscriptions.errors';
 import type { SubscriptionRecord } from './subscriptions.types';
@@ -25,6 +26,43 @@ export class SubscriptionsAction {
             request.billingAnchorDay,
             request.anchorIsMonthEnd,
         );
+    }
+
+    /** Resolves the paused status for a valid pause transition. */
+    resolvePauseStatusOrThrow(current: SubscriptionRecord): SubscriptionStatus {
+        if (current.status !== SubscriptionStatus.Active) {
+            throw new SubscriptionStateConflictException(
+                'Only active subscriptions can be paused',
+            );
+        }
+
+        return SubscriptionStatus.Paused;
+    }
+
+    /** Resolves the active status for a valid resume transition. */
+    resolveResumeStatusOrThrow(
+        current: SubscriptionRecord,
+    ): SubscriptionStatus {
+        if (current.status !== SubscriptionStatus.Paused) {
+            throw new SubscriptionStateConflictException(
+                'Only paused subscriptions can be resumed',
+            );
+        }
+
+        return SubscriptionStatus.Active;
+    }
+
+    /** Resolves the canceled status for a valid terminal transition. */
+    resolveCancelStatusOrThrow(
+        current: SubscriptionRecord,
+    ): SubscriptionStatus {
+        if (current.status === SubscriptionStatus.Canceled) {
+            throw new SubscriptionStateConflictException(
+                'Canceled subscription is terminal',
+            );
+        }
+
+        return SubscriptionStatus.Canceled;
     }
 
     /** Validates a controlled subscription update and returns whether its schedule changes. */

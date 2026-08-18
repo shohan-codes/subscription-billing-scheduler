@@ -9,6 +9,7 @@ import {
     InvalidSubscriptionDatesException,
     InvalidSubscriptionStateException,
     SubscriptionProcessingClaimActiveException,
+    SubscriptionStateConflictException,
     SubscriptionVersionConflictException,
 } from '../subscriptions.errors';
 import type { SubscriptionRecord } from '../subscriptions.types';
@@ -115,6 +116,45 @@ describe('SubscriptionsAction', () => {
                 billingAnchorDay: 31,
             }),
         ).not.toThrow();
+    });
+
+    it('resolves valid lifecycle transitions', () => {
+        expect(action.resolvePauseStatusOrThrow(currentSubscription())).toBe(
+            'paused',
+        );
+        expect(
+            action.resolveResumeStatusOrThrow({
+                ...currentSubscription(),
+                status: 'paused',
+            }),
+        ).toBe('active');
+        expect(action.resolveCancelStatusOrThrow(currentSubscription())).toBe(
+            'canceled',
+        );
+        expect(
+            action.resolveCancelStatusOrThrow({
+                ...currentSubscription(),
+                status: 'paused',
+            }),
+        ).toBe('canceled');
+    });
+
+    it('rejects invalid lifecycle transitions', () => {
+        expect(() =>
+            action.resolvePauseStatusOrThrow({
+                ...currentSubscription(),
+                status: 'paused',
+            }),
+        ).toThrow(SubscriptionStateConflictException);
+        expect(() =>
+            action.resolveResumeStatusOrThrow(currentSubscription()),
+        ).toThrow(SubscriptionStateConflictException);
+        expect(() =>
+            action.resolveCancelStatusOrThrow({
+                ...currentSubscription(),
+                status: 'canceled',
+            }),
+        ).toThrow(SubscriptionStateConflictException);
     });
 
     it('accepts a commercial-only update without treating it as a schedule change', () => {

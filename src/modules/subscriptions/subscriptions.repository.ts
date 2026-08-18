@@ -12,6 +12,7 @@ import type {
 } from './subscriptions.dto';
 import {
     SubscriptionNotFoundException,
+    SubscriptionStateConflictException,
     SubscriptionVersionConflictException,
 } from './subscriptions.errors';
 import type {
@@ -90,6 +91,27 @@ export class SubscriptionsRepository {
         const subscription = await statement.returningAll().executeTakeFirst();
 
         if (!subscription) throw new SubscriptionVersionConflictException();
+        return subscription;
+    }
+
+    /** Changes lifecycle status only when the previously read status is still current. */
+    async transitionStatusOrThrow(
+        id: string,
+        expectedStatus: SubscriptionStatus,
+        status: SubscriptionStatus,
+    ): Promise<SubscriptionRecord> {
+        const subscription = await this.database
+            .updateTable('subscriptions')
+            .set({
+                status,
+                version: sql<number>`version + 1`,
+            })
+            .where('id', '=', id)
+            .where('status', '=', expectedStatus)
+            .returningAll()
+            .executeTakeFirst();
+
+        if (!subscription) throw new SubscriptionStateConflictException();
         return subscription;
     }
 
