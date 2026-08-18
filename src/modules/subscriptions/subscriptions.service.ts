@@ -22,6 +22,7 @@ export class SubscriptionsService {
         private readonly cursorCodec: CursorCodec,
     ) {}
 
+    /** Creates a subscription after validating business rules. */
     async create(
         request: CreateSubscriptionRequest,
     ): Promise<CreateSubscriptionResponse> {
@@ -31,6 +32,7 @@ export class SubscriptionsService {
         return CreateSubscriptionResponse.from(subscription);
     }
 
+    /** Retrieves a subscription with its latest invoice summary. */
     async get(
         request: GetSubscriptionRequest,
     ): Promise<GetSubscriptionResponse> {
@@ -44,6 +46,7 @@ export class SubscriptionsService {
         });
     }
 
+    /** Lists subscriptions using filters and cursor pagination. */
     async list(
         request: ListSubscriptionsRequest,
     ): Promise<ListSubscriptionsResponse> {

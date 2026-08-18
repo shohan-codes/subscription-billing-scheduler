@@ -6,6 +6,27 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { DATABASE, type DatabaseClient } from '../src/database/database.module';
 
+type SubscriptionDetailsBody = {
+    data: {
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+type SubscriptionListBody = {
+    data: {
+        pagination: {
+            nextCursor: string | null;
+        };
+    };
+};
+
+type CreateSubscriptionBody = {
+    data: {
+        id: string;
+    };
+};
+
 const createRequest = (
     customerReference: string,
     firstBillingDate = '2026-08-31',
@@ -145,8 +166,9 @@ describe('Subscription retrieval and listing (e2e)', () => {
             errors: [],
         });
 
-        expect(response.body.data.createdAt).toEqual(expect.any(String));
-        expect(response.body.data.updatedAt).toEqual(expect.any(String));
+        const body = response.body as SubscriptionDetailsBody;
+        expect(body.data.createdAt).toEqual(expect.any(String));
+        expect(body.data.updatedAt).toEqual(expect.any(String));
     });
 
     it('returns not found for a missing subscription', async () => {
@@ -208,7 +230,8 @@ describe('Subscription retrieval and listing (e2e)', () => {
                 },
             },
         });
-        expect(firstPage.body.data.pagination.nextCursor).toEqual(
+        const firstPageBody = firstPage.body as SubscriptionListBody;
+        expect(firstPageBody.data.pagination.nextCursor).toEqual(
             expect.any(String),
         );
 
@@ -220,7 +243,7 @@ describe('Subscription retrieval and listing (e2e)', () => {
                 customerReference,
                 dueBefore: '2026-09-30',
                 limit: 1,
-                cursor: firstPage.body.data.pagination.nextCursor,
+                cursor: firstPageBody.data.pagination.nextCursor,
             })
             .expect(200);
 
@@ -271,7 +294,8 @@ describe('Subscription retrieval and listing (e2e)', () => {
                 ),
             )
             .expect(201);
-        const id = response.body.data.id as string;
+        const body = response.body as CreateSubscriptionBody;
+        const { id } = body.data;
 
         createdIds.push(id);
         return { id };
