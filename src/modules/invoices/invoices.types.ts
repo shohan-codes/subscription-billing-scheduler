@@ -1,12 +1,17 @@
-import type { Selectable } from 'kysely';
+import type { Insertable, Selectable } from 'kysely';
 import type { CursorPage } from '../../common/dto/cursor-pagination.dto';
 import type {
     InvoiceItemsTable,
     InvoicesTable,
+    SchedulerRunItemsTable,
 } from '../../database/database.types';
 
 export type InvoiceRecord = Selectable<InvoicesTable>;
 export type InvoiceItemRecord = Selectable<InvoiceItemsTable>;
+export type SchedulerRunItemRecord = Selectable<SchedulerRunItemsTable>;
+export type InvoiceInsert = Insertable<InvoicesTable>;
+export type InvoiceItemInsert = Insertable<InvoiceItemsTable>;
+export type SchedulerRunItemInsert = Insertable<SchedulerRunItemsTable>;
 
 export type InvoiceDetailRecord = InvoiceRecord & {
     items: InvoiceItemRecord[];
@@ -28,3 +33,22 @@ export type InvoiceListQuery = {
 };
 
 export type InvoiceListResult = CursorPage<InvoiceRecord>;
+
+export type GenerateClaimedInvoiceRequest = {
+    subscriptionId: string;
+    runId: string;
+    owner: string;
+    cutoffDate: string;
+};
+
+export type InvoiceGenerationDraft = {
+    invoice: InvoiceInsert;
+    item: InvoiceItemInsert;
+    nextBillingDate: string;
+};
+
+export type InvoiceGenerationResult = {
+    result: 'created';
+    invoice: InvoiceRecord;
+    nextBillingDate: string;
+};

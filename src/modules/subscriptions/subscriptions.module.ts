@@ -14,5 +14,6 @@ import { SubscriptionsService } from './subscriptions.service';
         SubscriptionsAction,
         SubscriptionsRepository,
     ],
+    exports: [SubscriptionsAction],
 })
 export class SubscriptionsModule {}
