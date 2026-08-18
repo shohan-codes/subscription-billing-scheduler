@@ -59,6 +59,9 @@ function createService(acquired: boolean, shuttingDown = false) {
                 timezone: 'UTC',
                 batchSize: 100,
                 claimSeconds: 300,
+                maxRunSeconds: 1800,
+                maxItemsPerRun: 100_000,
+                maxCatchUpPeriods: 12,
             },
         } as unknown as AppConfigService,
         {
@@ -79,6 +82,8 @@ function createService(acquired: boolean, shuttingDown = false) {
             createStaleRunThreshold: jest.fn(
                 (now: Date) => new Date(now.getTime() - 120_000),
             ),
+            resolveClaimBatchLimit: jest.fn(() => 100),
+            isRunDurationLimitReached: jest.fn(() => false),
             validateTriggerAllowedOrThrow: jest.fn(),
             resolveCompletedStatus: jest.fn(() => SchedulerRunStatus.Completed),
             classifyItemFailure: jest.fn(),
@@ -104,7 +109,7 @@ function createService(acquired: boolean, shuttingDown = false) {
             stop,
             isLeaseLost: false,
         } as unknown as BillingSchedulerHeartbeat,
-        { generateClaimed: jest.fn() } as unknown as InvoicesService,
+        { generateClaimedCatchUp: jest.fn() } as unknown as InvoicesService,
         {} as CursorCodec,
         {
             info,

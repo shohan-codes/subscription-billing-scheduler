@@ -13,7 +13,9 @@ import {
 } from './invoices.dto';
 import { InvoicesRepository } from './invoices.repository';
 import type {
+    GenerateClaimedCatchUpRequest,
     GenerateClaimedInvoiceRequest,
+    InvoiceCatchUpResult,
     InvoiceGenerationResult,
     InvoiceListCursor,
 } from './invoices.types';
@@ -99,6 +101,109 @@ export class InvoicesService {
                 result,
                 invoice,
                 nextBillingDate: updated.next_billing_date,
+            };
+        });
+    }
+
+    /** Processes all allowed overdue periods for one claimed subscription in one transaction. */
+    generateClaimedCatchUp(
+        request: GenerateClaimedCatchUpRequest,
+    ): Promise<InvoiceCatchUpResult> {
+        const startedAt = this.clock.now();
+
+        return this.repository.withTransaction(async (transaction) => {
+            let subscription =
+                await transaction.findSubscriptionForUpdateOrThrow(
+                    request.subscriptionId,
+                );
+            this.action.validateClaimedSubscriptionOrThrow(
+                subscription,
+                request,
+                startedAt,
+            );
+
+            const beforeBillingDate = subscription.next_billing_date;
+            const invoices = [];
+            let periodsProcessed = 0;
+            let invoicesCreated = 0;
+
+            do {
+                const draft = this.action.buildGenerationDraft(
+                    subscription,
+                    request,
+                );
+                const createdInvoice = await transaction.createInvoice(
+                    draft.invoice,
+                );
+                const duplicateCandidate = createdInvoice
+                    ? undefined
+                    : await transaction.findDuplicateCandidate(draft.invoice);
+                const invoice =
+                    createdInvoice ??
+                    this.action.resolveDuplicateOrThrow(
+                        duplicateCandidate,
+                        draft.invoice,
+                    );
+
+                if (createdInvoice) {
+                    await transaction.createItemOrThrow(draft.item);
+                    invoicesCreated += 1;
+                }
+
+                invoices.push(invoice);
+                subscription = await transaction.advanceSubscriptionOrThrow(
+                    subscription.id,
+                    request.runId,
+                    request.owner,
+                    subscription.next_billing_date,
+                    draft.nextBillingDate,
+                );
+                periodsProcessed += 1;
+            } while (
+                this.action.canContinueCatchUp(
+                    subscription.next_billing_date,
+                    request.cutoffDate,
+                    periodsProcessed,
+                    request.maxPeriods,
+                )
+            );
+
+            const completedAt = this.clock.now();
+            const result =
+                invoicesCreated > 0 ? 'created' : 'duplicate_confirmed';
+            await transaction.createRunItemOrThrow({
+                id: randomUUID(),
+                run_id: request.runId,
+                subscription_id: subscription.id,
+                result:
+                    result === 'created' ? 'success' : 'duplicate_confirmed',
+                before_billing_date: beforeBillingDate,
+                after_billing_date: subscription.next_billing_date,
+                invoices_created: invoicesCreated,
+                error_type: null,
+                error_code: null,
+                error_message: null,
+                started_at: startedAt,
+                completed_at: completedAt,
+            });
+            const updated = await transaction.clearClaimOrThrow(
+                subscription.id,
+                request.runId,
+                request.owner,
+            );
+
+            return {
+                result,
+                invoices,
+                nextBillingDate: updated.next_billing_date,
+                periodsProcessed,
+                invoicesCreated,
+                limitReached: this.action.isCatchUpLimitReached(
+                    updated.next_billing_date,
+                    request.cutoffDate,
+                    periodsProcessed,
+                    request.maxPeriods,
+                ),
             };
         });
     }

@@ -30,3 +30,13 @@ export const SchedulerRunItemResult = {
 
 export type SchedulerRunItemResult =
     (typeof SchedulerRunItemResult)[keyof typeof SchedulerRunItemResult];
+
+export const SchedulerProcessingStopReason = {
+    Exhausted: 'exhausted',
+    LeaseLost: 'lease_lost',
+    ShutdownInterrupted: 'shutdown_interrupted',
+    RunLimitReached: 'run_limit_reached',
+} as const;
+
+export type SchedulerProcessingStopReason =
+    (typeof SchedulerProcessingStopReason)[keyof typeof SchedulerProcessingStopReason];

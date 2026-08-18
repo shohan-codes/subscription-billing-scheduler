@@ -81,6 +81,32 @@ export class InvoicesAction {
         return existing;
     }
 
+    /** Decides whether another overdue billing period may be generated in this claim. */
+    canContinueCatchUp(
+        nextBillingDate: string,
+        cutoffDate: string,
+        periodsProcessed: number,
+        maxPeriods: number,
+    ): boolean {
+        return (
+            nextBillingDate <= cutoffDate &&
+            periodsProcessed < maxPeriods
+        );
+    }
+
+    /** Detects when catch-up stopped at its per-subscription limit while work remains due. */
+    isCatchUpLimitReached(
+        nextBillingDate: string,
+        cutoffDate: string,
+        periodsProcessed: number,
+        maxPeriods: number,
+    ): boolean {
+        return (
+            nextBillingDate <= cutoffDate &&
+            periodsProcessed >= maxPeriods
+        );
+    }
+
     /** Builds the baseline invoice, line-item snapshots, and following billing date. */
     buildGenerationDraft(
         subscription: SubscriptionRecord,

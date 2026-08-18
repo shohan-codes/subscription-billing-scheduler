@@ -41,6 +41,10 @@ export type GenerateClaimedInvoiceRequest = {
     cutoffDate: string;
 };
 
+export type GenerateClaimedCatchUpRequest = GenerateClaimedInvoiceRequest & {
+    maxPeriods: number;
+};
+
 export type InvoiceGenerationDraft = {
     invoice: InvoiceInsert;
     item: InvoiceItemInsert;
@@ -51,4 +55,13 @@ export type InvoiceGenerationResult = {
     result: 'created' | 'duplicate_confirmed';
     invoice: InvoiceRecord;
     nextBillingDate: string;
+};
+
+export type InvoiceCatchUpResult = {
+    result: 'created' | 'duplicate_confirmed';
+    invoices: InvoiceRecord[];
+    nextBillingDate: string;
+    periodsProcessed: number;
+    invoicesCreated: number;
+    limitReached: boolean;
 };

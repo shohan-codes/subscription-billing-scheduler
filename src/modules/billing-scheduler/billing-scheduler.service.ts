@@ -10,6 +10,7 @@ import { InvoicesService } from '../invoices/invoices.service';
 import { BillingSchedulerAction } from './billing-scheduler.action';
 import {
     BILLING_SCHEDULER_JOB_NAME,
+    SchedulerProcessingStopReason,
     SchedulerRunStatus,
     SchedulerTriggerType,
 } from './billing-scheduler.constant';
@@ -207,16 +208,40 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
         run: SchedulerRunRecord,
         claimOwner: string,
         counters: SchedulerRunCounters,
-    ): Promise<void> {
-        while (
-            !this.heartbeat.isLeaseLost &&
-            !this.shutdownState.isShuttingDown
-        ) {
+    ): Promise<SchedulerProcessingStopReason> {
+        const startedAt = run.started_at ?? run.triggered_at;
+
+        while (true) {
+            if (this.heartbeat.isLeaseLost) {
+                return SchedulerProcessingStopReason.LeaseLost;
+            }
+            if (this.shutdownState.isShuttingDown) {
+                return SchedulerProcessingStopReason.ShutdownInterrupted;
+            }
+
             const now = this.clock.now();
+            if (
+                this.action.isRunDurationLimitReached(
+                    startedAt,
+                    now,
+                    this.config.billing.maxRunSeconds,
+                )
+            ) {
+                return SchedulerProcessingStopReason.RunLimitReached;
+            }
+            const batchLimit = this.action.resolveClaimBatchLimit(
+                this.config.billing.batchSize,
+                counters.claimedCount,
+                this.config.billing.maxItemsPerRun,
+            );
+            if (batchLimit === 0) {
+                return SchedulerProcessingStopReason.RunLimitReached;
+            }
+
             const batch = await this.repository.claimDueBatch({
                 cutoffDate: run.cutoff_date,
                 now,
-                limit: this.config.billing.batchSize,
+                limit: batchLimit,
                 runId: run.id,
                 owner: claimOwner,
                 claimStartedAt: now,
@@ -226,32 +251,42 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                 ),
             });
 
-            if (batch.length === 0) return;
+            if (batch.length === 0) {
+                return SchedulerProcessingStopReason.Exhausted;
+            }
 
             counters.eligibleCount += batch.length;
             counters.claimedCount += batch.length;
 
             for (const subscription of batch) {
-                if (
-                    this.heartbeat.isLeaseLost ||
-                    this.shutdownState.isShuttingDown
-                ) {
-                    return;
+                if (this.heartbeat.isLeaseLost) {
+                    return SchedulerProcessingStopReason.LeaseLost;
+                }
+                if (this.shutdownState.isShuttingDown) {
+                    return SchedulerProcessingStopReason.ShutdownInterrupted;
                 }
 
                 const itemStartedAt = this.clock.now();
+                if (
+                    this.action.isRunDurationLimitReached(
+                        startedAt,
+                        itemStartedAt,
+                        this.config.billing.maxRunSeconds,
+                    )
+                ) {
+                    return SchedulerProcessingStopReason.RunLimitReached;
+                }
 
                 try {
-                    const result = await this.invoices.generateClaimed({
+                    const result = await this.invoices.generateClaimedCatchUp({
                         subscriptionId: subscription.id,
                         runId: run.id,
                         owner: claimOwner,
                         cutoffDate: run.cutoff_date,
+                        maxPeriods: this.config.billing.maxCatchUpPeriods,
                     });
                     counters.succeededCount += 1;
-                    if (result.result === 'created') {
-                        counters.invoicesCreatedCount += 1;
-                    }
+                    counters.invoicesCreatedCount += result.invoicesCreated;
                 } catch (error) {
                     const completedAt = this.clock.now();
                     const failure = this.action.classifyItemFailure(
@@ -420,12 +455,13 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
             const claimOwner = this.action.createClaimOwner(
                 this.config.app.instanceId,
             );
-            await this.processClaimedBatches(run, claimOwner, counters);
+            const stopReason = await this.processClaimedBatches(
+                run,
+                claimOwner,
+                counters,
+            );
 
-            if (
-                this.heartbeat.isLeaseLost ||
-                this.shutdownState.isShuttingDown
-            ) {
+            if (stopReason !== SchedulerProcessingStopReason.Exhausted) {
                 return this.repository.finalizeRunOrThrow(
                     run.id,
                     lease.owner_token,
@@ -433,12 +469,20 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                         status: SchedulerRunStatus.Interrupted,
                         completedAt: this.clock.now(),
                         counters,
-                        errorCode: this.heartbeat.isLeaseLost
-                            ? 'SCHEDULER_LEASE_LOST'
-                            : 'SHUTDOWN_INTERRUPTED',
-                        errorMessage: this.heartbeat.isLeaseLost
-                            ? 'Scheduler lease ownership was lost'
-                            : 'Billing run was interrupted by application shutdown',
+                        errorCode:
+                            stopReason === SchedulerProcessingStopReason.LeaseLost
+                                ? 'SCHEDULER_LEASE_LOST'
+                                : stopReason ===
+                                    SchedulerProcessingStopReason.RunLimitReached
+                                  ? 'RUN_LIMIT_REACHED'
+                                  : 'SHUTDOWN_INTERRUPTED',
+                        errorMessage:
+                            stopReason === SchedulerProcessingStopReason.LeaseLost
+                                ? 'Scheduler lease ownership was lost'
+                                : stopReason ===
+                                    SchedulerProcessingStopReason.RunLimitReached
+                                  ? 'Billing run stopped at a configured safety limit'
+                                  : 'Billing run was interrupted by application shutdown',
                     },
                 );
             }
