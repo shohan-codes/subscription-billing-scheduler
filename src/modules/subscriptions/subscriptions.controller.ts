@@ -14,8 +14,11 @@ import {
     CreateSubscriptionResponse,
     GetSubscriptionRequest,
     GetSubscriptionResponse,
+    CancelSubscriptionResponse,
     ListSubscriptionsRequest,
     ListSubscriptionsResponse,
+    PauseSubscriptionResponse,
+    ResumeSubscriptionResponse,
     UpdateSubscriptionRequest,
     UpdateSubscriptionResponse,
 } from './subscriptions.dto';
@@ -53,6 +56,48 @@ export class SubscriptionsController {
         @Body() request: UpdateSubscriptionRequest,
     ): Promise<UpdateSubscriptionResponse> {
         return this.service.update(params.id, request);
+    }
+
+    @Post(':id/pause')
+    @ApiRoute({
+        summary: 'Pause a subscription',
+        auth: false,
+        notFound: true,
+        conflict: true,
+        responseType: PauseSubscriptionResponse,
+    })
+    pause(
+        @Param() params: GetSubscriptionRequest,
+    ): Promise<PauseSubscriptionResponse> {
+        return this.service.pause(params.id);
+    }
+
+    @Post(':id/resume')
+    @ApiRoute({
+        summary: 'Resume a subscription',
+        auth: false,
+        notFound: true,
+        conflict: true,
+        responseType: ResumeSubscriptionResponse,
+    })
+    resume(
+        @Param() params: GetSubscriptionRequest,
+    ): Promise<ResumeSubscriptionResponse> {
+        return this.service.resume(params.id);
+    }
+
+    @Post(':id/cancel')
+    @ApiRoute({
+        summary: 'Cancel a subscription',
+        auth: false,
+        notFound: true,
+        conflict: true,
+        responseType: CancelSubscriptionResponse,
+    })
+    cancel(
+        @Param() params: GetSubscriptionRequest,
+    ): Promise<CancelSubscriptionResponse> {
+        return this.service.cancel(params.id);
     }
 
     @Get()

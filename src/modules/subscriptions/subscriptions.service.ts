@@ -5,12 +5,15 @@ import { CursorCodec } from '../../common/cursor-codec';
 import { SubscriptionsAction } from './subscriptions.action';
 import { SUBSCRIPTION_DATE_PATTERN } from './subscriptions.constant';
 import {
+    CancelSubscriptionResponse,
     CreateSubscriptionRequest,
     CreateSubscriptionResponse,
     GetSubscriptionRequest,
     GetSubscriptionResponse,
     ListSubscriptionsRequest,
     ListSubscriptionsResponse,
+    PauseSubscriptionResponse,
+    ResumeSubscriptionResponse,
     UpdateSubscriptionRequest,
     UpdateSubscriptionResponse,
 } from './subscriptions.dto';
@@ -56,6 +59,45 @@ export class SubscriptionsService {
         );
 
         return UpdateSubscriptionResponse.from(subscription);
+    }
+
+    /** Pauses an active subscription without changing its next billing date. */
+    async pause(id: string): Promise<PauseSubscriptionResponse> {
+        const current = await this.repository.findByIdOrThrow(id);
+        const status = this.action.resolvePauseStatusOrThrow(current);
+        const subscription = await this.repository.transitionStatusOrThrow(
+            id,
+            current.status,
+            status,
+        );
+
+        return PauseSubscriptionResponse.from(subscription);
+    }
+
+    /** Resumes a paused subscription without advancing its next billing date. */
+    async resume(id: string): Promise<ResumeSubscriptionResponse> {
+        const current = await this.repository.findByIdOrThrow(id);
+        const status = this.action.resolveResumeStatusOrThrow(current);
+        const subscription = await this.repository.transitionStatusOrThrow(
+            id,
+            current.status,
+            status,
+        );
+
+        return ResumeSubscriptionResponse.from(subscription);
+    }
+
+    /** Cancels an active or paused subscription terminally. */
+    async cancel(id: string): Promise<CancelSubscriptionResponse> {
+        const current = await this.repository.findByIdOrThrow(id);
+        const status = this.action.resolveCancelStatusOrThrow(current);
+        const subscription = await this.repository.transitionStatusOrThrow(
+            id,
+            current.status,
+            status,
+        );
+
+        return CancelSubscriptionResponse.from(subscription);
     }
 
     /** Retrieves a subscription with its latest invoice summary. */

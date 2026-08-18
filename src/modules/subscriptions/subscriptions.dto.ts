@@ -343,6 +343,18 @@ export class UpdateSubscriptionRequest {
 
 export class UpdateSubscriptionResponse extends SubscriptionResponse {}
 
+// ---------- Pause Subscription ----------
+
+export class PauseSubscriptionResponse extends SubscriptionResponse {}
+
+// ---------- Resume Subscription ----------
+
+export class ResumeSubscriptionResponse extends SubscriptionResponse {}
+
+// ---------- Cancel Subscription ----------
+
+export class CancelSubscriptionResponse extends SubscriptionResponse {}
+
 // ---------- Get Subscription ----------
 
 export class GetSubscriptionRequest {
