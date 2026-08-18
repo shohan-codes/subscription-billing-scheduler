@@ -9,6 +9,7 @@ const subscriptionIds = [
     '11111111-1111-4111-8111-111111111104',
     '11111111-1111-4111-8111-111111111105',
     '11111111-1111-4111-8111-111111111106',
+    '11111111-1111-4111-8111-111111111107',
 ] as const;
 
 const invoiceIds = [
@@ -111,6 +112,24 @@ async function seed(): Promise<void> {
                         anchor_is_month_end: false,
                     },
                     {
+                        id: subscriptionIds[6],
+                        customer_reference: 'CUST-DEMO-4004',
+                        description: 'Recovery Demo - Retry Wait',
+                        status: 'active',
+                        billing_state: 'retry_wait',
+                        currency: 'USD',
+                        amount: '39.0000',
+                        start_date: '2026-08-01',
+                        next_billing_date: '2026-08-31',
+                        billing_anchor_day: 31,
+                        anchor_is_month_end: true,
+                        billing_failure_count: 1,
+                        billing_retry_at: '2099-08-18T03:05:00.000Z',
+                        last_billing_error_code: 'DATABASE_DEADLOCK',
+                        last_billing_error_message:
+                            'Temporary database conflict',
+                    },
+                    {
                         id: subscriptionIds[5],
                         customer_reference: 'CUST-DEMO-3003',
                         description: 'Starter Plan - Claimed',
@@ -164,13 +183,19 @@ async function seed(): Promise<void> {
                 .execute();
         });
 
-        console.log('Seeded 6 subscriptions and 2 invoices.');
+        console.log('Seeded 7 subscriptions and 2 invoices.');
         console.log(`Get demo: /api/v1/subscriptions/${subscriptionIds[1]}`);
         console.log(
             'List demo: /api/v1/subscriptions?customerReference=CUST-DEMO-1001',
         );
         console.log(
             `Claimed update demo: /api/v1/subscriptions/${subscriptionIds[5]}`,
+        );
+        console.log(
+            `Retry demo: /api/v1/subscriptions/${subscriptionIds[6]}/billing-retry`,
+        );
+        console.log(
+            `Unblock demo: /api/v1/subscriptions/${subscriptionIds[2]}/billing-retry`,
         );
     } finally {
         await app.close();
