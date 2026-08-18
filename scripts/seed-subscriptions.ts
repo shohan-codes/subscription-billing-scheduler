@@ -17,6 +17,7 @@ const invoiceIds = [
     '22222222-2222-4222-8222-222222222202',
 ] as const;
 
+/** Seeds deterministic subscription and invoice records for local testing. */
 async function seed(): Promise<void> {
     const app = await NestFactory.createApplicationContext(AppModule, {
         logger: false,

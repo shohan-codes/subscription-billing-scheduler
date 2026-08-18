@@ -5,6 +5,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { DATABASE, type DatabaseClient } from '../src/database/database.module';
 
+/** Builds a valid request payload for subscription creation E2E tests. */
 const createRequest = () => ({
     customerReference: 'CUST-E2E-1001',
     description: 'Pro Plan - Monthly',

@@ -19,6 +19,7 @@ type SubscriptionBody = {
     };
 };
 
+/** Builds a valid request payload for subscription update E2E tests. */
 const createRequest = (customerReference: string) => ({
     customerReference,
     description: 'Pro Plan - Monthly',
@@ -181,6 +182,7 @@ describe('Subscription update (e2e)', () => {
             .expect(400);
     });
 
+    /** Creates and tracks a subscription for the current E2E scenario. */
     async function createSubscription(): Promise<{
         id: string;
         version: number;

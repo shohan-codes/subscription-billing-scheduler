@@ -20,17 +20,20 @@ process.env.DATABASE_URL ??=
 
 @Controller()
 class TestController {
+    /** Returns a response that should receive the global envelope. */
     @Get('wrapped')
     wrapped() {
         return { value: 42 };
     }
 
+    /** Returns a response that opts out of the global envelope. */
     @Get('raw')
     @SkipEnvelope()
     raw() {
         return { value: 42 };
     }
 
+    /** Throws a controlled validation-style API error. */
     @Get('invalid')
     invalid(): never {
         throw new BadRequestException({
@@ -46,6 +49,7 @@ class TestController {
     controllers: [TestController],
 })
 class TestModule implements NestModule {
+    /** Registers request ID middleware for the test module. */
     configure(consumer: MiddlewareConsumer): void {
         consumer.apply(RequestIdMiddleware).forRoutes('*');
     }

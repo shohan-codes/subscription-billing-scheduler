@@ -27,6 +27,7 @@ type CreateSubscriptionBody = {
     };
 };
 
+/** Builds a valid request payload for subscription retrieval E2E tests. */
 const createRequest = (
     customerReference: string,
     firstBillingDate = '2026-08-31',
@@ -279,6 +280,7 @@ describe('Subscription retrieval and listing (e2e)', () => {
         expect(response.body).toMatchObject({ code: 'INVALID_CURSOR' });
     });
 
+    /** Creates and tracks a subscription for the current E2E scenario. */
     async function createSubscription(
         customerReference: string,
         firstBillingDate = '2026-08-31',

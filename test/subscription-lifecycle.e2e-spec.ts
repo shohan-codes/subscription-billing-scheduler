@@ -15,6 +15,7 @@ type SubscriptionBody = {
     };
 };
 
+/** Builds a valid request payload for subscription lifecycle E2E tests. */
 const createRequest = (customerReference: string) => ({
     customerReference,
     description: 'Lifecycle Plan',
@@ -157,6 +158,7 @@ describe('Subscription lifecycle (e2e)', () => {
             .expect(404);
     });
 
+    /** Creates and tracks a subscription for the current E2E scenario. */
     async function createSubscription(
         overrides: Partial<ReturnType<typeof createRequest>> = {},
     ): Promise<SubscriptionBody['data']> {

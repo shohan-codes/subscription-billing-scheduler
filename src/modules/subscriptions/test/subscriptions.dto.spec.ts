@@ -4,6 +4,7 @@ import {
     UpdateSubscriptionRequest,
 } from '../subscriptions.dto';
 
+/** Builds a valid creation DTO for validation tests. */
 const validRequest = (): CreateSubscriptionRequest =>
     Object.assign(new CreateSubscriptionRequest(), {
         customerReference: 'CUST-1001',
@@ -38,6 +39,7 @@ describe('CreateSubscriptionRequest', () => {
 });
 
 describe('UpdateSubscriptionRequest', () => {
+    /** Builds a valid update DTO for validation tests. */
     const validUpdate = (): UpdateSubscriptionRequest =>
         Object.assign(new UpdateSubscriptionRequest(), {
             description: 'Pro Plan - Annual',

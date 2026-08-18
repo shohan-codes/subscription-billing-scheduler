@@ -38,6 +38,7 @@ describe('OperatorGuard', () => {
     });
 });
 
+/** Builds a minimal HTTP execution context for guard tests. */
 function httpContext(authorization?: string): ExecutionContext {
     return {
         switchToHttp: () => ({
