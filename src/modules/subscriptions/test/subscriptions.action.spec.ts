@@ -8,8 +8,10 @@ import {
     InvalidBillingAnchorException,
     InvalidSubscriptionDatesException,
     InvalidSubscriptionStateException,
+    SubscriptionBillingRecoveryConflictException,
     SubscriptionProcessingClaimActiveException,
     SubscriptionStateConflictException,
+    SubscriptionUnblockRequiredException,
     SubscriptionVersionConflictException,
 } from '../subscriptions.errors';
 import type { SubscriptionRecord } from '../subscriptions.types';
@@ -155,6 +157,55 @@ describe('SubscriptionsAction', () => {
                 status: 'canceled',
             }),
         ).toThrow(SubscriptionStateConflictException);
+    });
+
+    it('accepts retry recovery and explicit unblock requests', () => {
+        expect(() =>
+            action.validateBillingRetryOrThrow(
+                {
+                    ...currentSubscription(),
+                    billing_state: 'retry_wait',
+                },
+                {},
+            ),
+        ).not.toThrow();
+        expect(() =>
+            action.validateBillingRetryOrThrow(
+                {
+                    ...currentSubscription(),
+                    billing_state: 'blocked',
+                },
+                { unblock: true },
+            ),
+        ).not.toThrow();
+    });
+
+    it('requires an explicit unblock for blocked subscriptions', () => {
+        expect(() =>
+            action.validateBillingRetryOrThrow(
+                {
+                    ...currentSubscription(),
+                    billing_state: 'blocked',
+                },
+                {},
+            ),
+        ).toThrow(SubscriptionUnblockRequiredException);
+    });
+
+    it('rejects billing recovery when no recoverable failure state exists', () => {
+        expect(() =>
+            action.validateBillingRetryOrThrow(currentSubscription(), {}),
+        ).toThrow(SubscriptionBillingRecoveryConflictException);
+        expect(() =>
+            action.validateBillingRetryOrThrow(
+                {
+                    ...currentSubscription(),
+                    status: 'canceled',
+                    billing_state: 'blocked',
+                },
+                { unblock: true },
+            ),
+        ).toThrow(SubscriptionBillingRecoveryConflictException);
     });
 
     it('accepts a commercial-only update without treating it as a schedule change', () => {

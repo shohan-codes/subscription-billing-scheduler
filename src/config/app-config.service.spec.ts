@@ -13,6 +13,8 @@ describe('AppConfigService', () => {
             DATABASE_POOL_MAX: '20',
             BILLING_BATCH_SIZE: '250',
             BILLING_TIMEZONE: 'Asia/Dhaka',
+            OPERATOR_CREDENTIALS:
+                '{"operator-1":"0123456789abcdef0123456789abcdef"}',
         });
         const appConfig = new AppConfigService(
             new ConfigService<EnvironmentVariables, true>(values),
@@ -22,5 +24,8 @@ describe('AppConfigService', () => {
         expect(appConfig.database.poolMax).toBe(20);
         expect(appConfig.billing.batchSize).toBe(250);
         expect(appConfig.billing.timezone).toBe('Asia/Dhaka');
+        expect(appConfig.operator.credentials).toEqual({
+            'operator-1': '0123456789abcdef0123456789abcdef',
+        });
     });
 });
