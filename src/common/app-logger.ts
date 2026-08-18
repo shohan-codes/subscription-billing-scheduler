@@ -21,22 +21,27 @@ export class AppLogger {
         private readonly context: RequestContext,
     ) {}
 
+    /** Emits a structured debug event. */
     debug(event: string, fields: LogFields = {}): void {
         this.logger.debug(this.entry('debug', event, fields));
     }
 
+    /** Emits a structured informational event. */
     info(event: string, fields: LogFields = {}): void {
         this.logger.log(this.entry('info', event, fields));
     }
 
+    /** Emits a structured warning event. */
     warn(event: string, fields: LogFields = {}): void {
         this.logger.warn(this.entry('warn', event, fields));
     }
 
+    /** Emits a structured error event. */
     error(event: string, fields: LogFields = {}): void {
         this.logger.error(this.entry('error', event, fields));
     }
 
+    /** Builds a structured log entry with correlation fields. */
     private entry(level: LogLevel, event: string, fields: LogFields) {
         return {
             ...redact(fields),
@@ -46,11 +51,13 @@ export class AppLogger {
             ...(this.context.requestId
                 ? { requestId: this.context.requestId }
                 : {}),
+            ...(this.context.actorId ? { actorId: this.context.actorId } : {}),
             instanceId: this.config.app.instanceId,
         };
     }
 }
 
+/** Redacts sensitive structured-log fields. */
 function redact(fields: LogFields): LogFields {
     return Object.fromEntries(
         Object.entries(fields).map(([key, value]) => [

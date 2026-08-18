@@ -20,6 +20,11 @@ interface SwaggerConfiguration {
     readonly path: string;
 }
 
+interface OperatorConfiguration {
+    readonly id: EnvironmentVariables['OPERATOR_ID'];
+    readonly token: EnvironmentVariables['OPERATOR_TOKEN'];
+}
+
 interface BillingConfiguration {
     readonly cronEnabled: boolean;
     readonly cronExpression: string;
@@ -35,17 +40,13 @@ interface BillingConfiguration {
     readonly runOnStartup: boolean;
 }
 
-/**
- * Exposes validated environment config through typed groups.
- *
- * - Application code reads config through this service.
- * - Env-key mapping stays at this boundary.
- */
+/** Exposes validated environment configuration through typed groups. */
 @Injectable()
 export class AppConfigService {
     readonly app: AppConfiguration;
     readonly database: DatabaseConfiguration;
     readonly swagger: SwaggerConfiguration;
+    readonly operator: OperatorConfiguration;
     readonly billing: BillingConfiguration;
 
     constructor(config: ConfigService<EnvironmentVariables, true>) {
@@ -69,6 +70,11 @@ export class AppConfigService {
         this.swagger = {
             enabled: config.get('SWAGGER_ENABLED', { infer: true }),
             path: config.get('SWAGGER_PATH', { infer: true }),
+        };
+
+        this.operator = {
+            id: config.get('OPERATOR_ID', { infer: true }),
+            token: config.get('OPERATOR_TOKEN', { infer: true }),
         };
 
         this.billing = {

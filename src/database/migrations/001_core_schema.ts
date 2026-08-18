@@ -1,5 +1,6 @@
 import { type Kysely, sql } from 'kysely';
 
+/** Creates the Phase 2 core database schema and indexes. */
 export async function up(db: Kysely<unknown>): Promise<void> {
     await db.schema
         .createTable('scheduler_runs')
@@ -337,6 +338,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     `.execute(db);
 }
 
+/** Drops the Phase 2 core database schema in reverse dependency order. */
 export async function down(db: Kysely<unknown>): Promise<void> {
     await db.schema.dropTable('scheduler_run_items').execute();
     await db.schema.dropTable('invoice_items').execute();

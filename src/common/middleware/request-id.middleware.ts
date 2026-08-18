@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { Injectable, type NestMiddleware } from '@nestjs/common';
-import { RequestContext } from './request-context';
+import { RequestContext } from '../request-context';
 
 export const REQUEST_ID_HEADER = 'x-request-id';
 const SAFE_REQUEST_ID = /^[A-Za-z0-9._:-]{1,128}$/;

@@ -2,17 +2,39 @@
 
 ### JSDoc : keep comments concise and purpose-focused
 
-- `Usage`: Add JSDoc to major or non-trivial classes, functions, methods, and lifecycle boundaries; skip simple self-explanatory code.
+- `Usage`: Add single-line JSDoc above every named source function, method, getter, and setter; constructors and anonymous callbacks do not require JSDoc.
 - `Purpose`: Keep JSDoc focused only on the purpose of the class, function, or method.
-- `Single line`: Use single-line JSDoc when the description fits on one line, for example `/** Finds a subscription by ID or throws when missing. */`. (Most Case)
-- `Multiline`: Use multiline JSDoc only when multiple meaningful lines are actually required.
+- `Single line`: Keep source JSDoc on one line, for example `/** Finds a subscription by ID or throws when missing. */`.
+- `Overloads`: Document an overload group once above its first signature instead of repeating the same JSDoc on every signature.
 - `Content`: Do not put architectural rules, generic explanations, or obvious implementation details in source-code comments.
-- `Controllers`: Do not use JSDoc for controller endpoint descriptions; document controller methods with OpenAPI decorators.
+- `Controllers`: Keep endpoint behavior documented with OpenAPI decorators and add a concise single-line JSDoc above each controller method for source readability.
 
 ### Method layout : keep methods easy to scan
 
-- `Spacing`: Separate one method from the next with extra blank lines.
+- `Spacing`: Separate methods and named functions with one blank line, then place the next declaration's single-line JSDoc immediately above it; do not add formatting that Prettier will collapse.
 - `Ordering`: Keep paired methods adjacent and order them as `<X>OrThrow` first, then `<X>`.
+
+## Common convention
+
+### Common structure : keep shared code feature-neutral
+
+- `Ownership`: Keep feature-owned business rules inside their feature module; move code to `common` only when it is genuinely feature-neutral.
+- `Utilities`: Keep pure reusable helpers under `src/common/utils/` and name files after the neutral concept they implement, such as `calendar-date.ts`.
+- `Infrastructure`: Keep cross-cutting services such as logging, clock, request context, and shutdown state at the `common` root.
+- `Grouping`: Keep guards under `src/common/guards/` and middleware under `src/common/middleware/`.
+- `YAGNI`: Do not create generic shared abstractions for a single feature-owned use case.
+
+## Documentation convention
+
+### Endpoint flowcharts : document each module's HTTP flow
+
+- `Location`: Keep `flowchart.md` inside the module that owns the endpoints, beside its module source files.
+- `Index`: Start each flowchart document with an index that links to every endpoint section in the module.
+- `Coverage`: Include one Mermaid flowchart for every endpoint exposed by the module.
+- `Structure`: Follow the established numbered-subgraph convention: request, field-level DTO validation, validation result, service flow, business decisions, repository/database flow, response mapping, success response, and error response when those layers apply.
+- `Validation`: Give each request field its own validation tree with local `VALID` and `INVALID` nodes; converge valid fields directly into `All field validations passed` and invalid fields directly into the validation error.
+- `Mermaid`: Use conservative `flowchart TD` syntax and simple subgraphs so repository renderers remain compatible.
+- `Comments`: Do not add Mermaid `%%` comments inside endpoint flowcharts.
 
 ## Configuration convention
 
@@ -39,6 +61,7 @@ src/modules/<feature>/
 ├── <feature>.constant.ts   # only if needed
 ├── <feature>.types.ts      # only if needed
 ├── <feature>.errors.ts
+├── flowchart.md
 └── test/
     └── *.spec.ts
 ```
