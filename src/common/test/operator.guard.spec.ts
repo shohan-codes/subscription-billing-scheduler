@@ -8,12 +8,14 @@ import type { RequestContext } from '../request-context';
 const TOKEN = '0123456789abcdef0123456789abcdef';
 
 describe('OperatorGuard', () => {
-    const context = { setActorId: jest.fn() } as unknown as RequestContext;
-    const logger = { info: jest.fn() } as unknown as AppLogger;
+    const setActorId = jest.fn();
+    const logInfo = jest.fn();
+    const context = { setActorId } as unknown as RequestContext;
+    const logger = { info: logInfo } as unknown as AppLogger;
     const guard = new OperatorGuard(
         {
             operator: { credentials: { 'operator-1': TOKEN } },
-        } as AppConfigService,
+        } as unknown as AppConfigService,
         context,
         logger,
     );
@@ -22,8 +24,8 @@ describe('OperatorGuard', () => {
 
     it('binds the configured actor to an authorized bearer token', () => {
         expect(guard.canActivate(httpContext(`Bearer ${TOKEN}`))).toBe(true);
-        expect(context.setActorId).toHaveBeenCalledWith('operator-1');
-        expect(logger.info).toHaveBeenCalledWith('operator_authorized');
+        expect(setActorId).toHaveBeenCalledWith('operator-1');
+        expect(logInfo).toHaveBeenCalledWith('operator_authorized');
     });
 
     it('rejects missing or unknown operator credentials', () => {

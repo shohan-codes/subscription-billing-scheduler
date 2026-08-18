@@ -174,9 +174,7 @@ describe('Subscription billing retry (e2e)', () => {
     async function createSubscription(): Promise<SubscriptionBody['data']> {
         const response = await request(app.getHttpServer())
             .post('/api/v1/subscriptions')
-            .send(
-                createRequest(`RECOVERY-${randomUUID().slice(0, 8)}`),
-            )
+            .send(createRequest(`RECOVERY-${randomUUID().slice(0, 8)}`))
             .expect(201);
         const body = response.body as SubscriptionBody;
 
