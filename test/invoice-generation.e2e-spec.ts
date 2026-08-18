@@ -5,7 +5,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { DATABASE, type DatabaseClient } from '../src/database/database.module';
-import { InvoicePeriodConflictException } from '../src/modules/invoices/invoices.errors';
+import { InvoiceTransactionRepository } from '../src/modules/invoices/invoices.repository';
 import { InvoicesService } from '../src/modules/invoices/invoices.service';
 
 type CreateSubscriptionBody = {
@@ -170,39 +170,24 @@ describe('Transactional invoice generation (e2e)', () => {
         });
     });
 
-    it('rolls back schedule and claim changes when duplicate verification fails', async () => {
+    it('rolls back invoice and schedule changes when item persistence fails', async () => {
         const fixture = await createClaimedFixture();
-        const existingInvoiceId = randomUUID();
+        const createItem = jest
+            .spyOn(InvoiceTransactionRepository.prototype, 'createItemOrThrow')
+            .mockRejectedValueOnce(new Error('Injected invoice item failure'));
 
-        await database
-            .insertInto('invoices')
-            .values({
-                id: existingInvoiceId,
-                invoice_number: `INV-${existingInvoiceId.slice(0, 8)}`,
-                subscription_id: fixture.subscriptionId,
-                customer_reference: 'TXN-E2E',
-                billing_period_start: '2026-01-31',
-                billing_period_end: '2026-02-28',
-                issue_date: '2026-01-31',
-                status: 'issued',
-                currency: 'EUR',
-                subtotal: '49.0000',
-                tax_total: '0.0000',
-                discount_total: '0.0000',
-                total: '49.0000',
-                idempotency_key: `existing:${existingInvoiceId}`,
-                generated_by_run_id: fixture.runId,
-            })
-            .executeTakeFirstOrThrow();
-
-        await expect(
-            invoices.generateClaimed({
-                subscriptionId: fixture.subscriptionId,
-                runId: fixture.runId,
-                owner: fixture.owner,
-                cutoffDate: '2026-01-31',
-            }),
-        ).rejects.toBeInstanceOf(InvoicePeriodConflictException);
+        try {
+            await expect(
+                invoices.generateClaimed({
+                    subscriptionId: fixture.subscriptionId,
+                    runId: fixture.runId,
+                    owner: fixture.owner,
+                    cutoffDate: '2026-01-31',
+                }),
+            ).rejects.toThrow('Injected invoice item failure');
+        } finally {
+            createItem.mockRestore();
+        }
 
         const subscription = await database
             .selectFrom('subscriptions')
@@ -213,6 +198,9 @@ describe('Transactional invoice generation (e2e)', () => {
             next_billing_date: '2026-01-31',
             billing_state: 'retry_wait',
             billing_failure_count: 2,
+            billing_retry_at: new Date('2026-01-30T00:00:00.000Z'),
+            last_billing_error_code: 'DATABASE_TIMEOUT',
+            last_billing_error_message: 'Temporary database timeout',
             processing_run_id: fixture.runId,
             processing_owner: fixture.owner,
             version: 1,
@@ -223,7 +211,7 @@ describe('Transactional invoice generation (e2e)', () => {
             .select((eb) => eb.fn.countAll<number>().as('count'))
             .where('subscription_id', '=', fixture.subscriptionId)
             .executeTakeFirstOrThrow();
-        expect(Number(invoiceCount.count)).toBe(1);
+        expect(Number(invoiceCount.count)).toBe(0);
 
         const runItems = await database
             .selectFrom('scheduler_run_items')
