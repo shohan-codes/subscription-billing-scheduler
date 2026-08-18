@@ -4,6 +4,7 @@ import {
     Get,
     HttpStatus,
     Param,
+    Patch,
     Post,
     Query,
 } from '@nestjs/common';
@@ -15,6 +16,8 @@ import {
     GetSubscriptionResponse,
     ListSubscriptionsRequest,
     ListSubscriptionsResponse,
+    UpdateSubscriptionRequest,
+    UpdateSubscriptionResponse,
 } from './subscriptions.dto';
 import { SubscriptionsService } from './subscriptions.service';
 
@@ -34,6 +37,22 @@ export class SubscriptionsController {
         @Body() request: CreateSubscriptionRequest,
     ): Promise<CreateSubscriptionResponse> {
         return this.service.create(request);
+    }
+
+    @Patch(':id')
+    @ApiRoute({
+        summary: 'Update a subscription',
+        auth: false,
+        notFound: true,
+        conflict: true,
+        unprocessable: true,
+        responseType: UpdateSubscriptionResponse,
+    })
+    update(
+        @Param() params: GetSubscriptionRequest,
+        @Body() request: UpdateSubscriptionRequest,
+    ): Promise<UpdateSubscriptionResponse> {
+        return this.service.update(params.id, request);
     }
 
     @Get()
