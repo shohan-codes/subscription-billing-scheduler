@@ -19,7 +19,8 @@ export class SubscriptionClaimLostException extends ConflictException {
     constructor() {
         super({
             code: InvoiceErrorCode.ClaimLost,
-            message: 'Subscription processing claim is missing or no longer owned',
+            message:
+                'Subscription processing claim is missing or no longer owned',
         });
     }
 }

@@ -65,12 +65,11 @@ export class InvoicesAction {
         subscription: SubscriptionRecord,
         request: GenerateClaimedInvoiceRequest,
     ): InvoiceGenerationDraft {
-        const nextBillingDate =
-            this.subscriptionsAction.nextMonthlyBillingDate(
-                subscription.next_billing_date,
-                subscription.billing_anchor_day,
-                subscription.anchor_is_month_end,
-            );
+        const nextBillingDate = this.subscriptionsAction.nextMonthlyBillingDate(
+            subscription.next_billing_date,
+            subscription.billing_anchor_day,
+            subscription.anchor_is_month_end,
+        );
         const invoiceId = randomUUID();
 
         return {

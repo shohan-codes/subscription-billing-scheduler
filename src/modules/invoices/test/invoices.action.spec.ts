@@ -68,9 +68,7 @@ describe('InvoicesAction', () => {
             action.validateClaimedSubscriptionOrThrow(
                 {
                     ...claimedSubscription(),
-                    processing_expires_at: new Date(
-                        '2026-01-31T00:06:00.000Z',
-                    ),
+                    processing_expires_at: new Date('2026-01-31T00:06:00.000Z'),
                 },
                 generationRequest(),
                 now,

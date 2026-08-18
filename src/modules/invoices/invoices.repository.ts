@@ -25,9 +25,11 @@ export class InvoicesRepository {
     withTransaction<T>(
         work: (repository: InvoiceTransactionRepository) => Promise<T>,
     ): Promise<T> {
-        return this.database.transaction().execute((transaction) =>
-            work(new InvoiceTransactionRepository(transaction)),
-        );
+        return this.database
+            .transaction()
+            .execute((transaction) =>
+                work(new InvoiceTransactionRepository(transaction)),
+            );
     }
 
     /** Finds an invoice by ID or throws when missing. */
