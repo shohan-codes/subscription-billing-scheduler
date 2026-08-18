@@ -127,11 +127,7 @@ describe('SubscriptionsAction', () => {
     });
 
     it('clamps short months and restores the original billing anchor later', () => {
-        const february = action.nextMonthlyBillingDate(
-            '2026-01-31',
-            31,
-            false,
-        );
+        const february = action.nextMonthlyBillingDate('2026-01-31', 31, false);
         const march = action.nextMonthlyBillingDate(february, 31, false);
 
         expect(february).toBe('2026-02-28');
