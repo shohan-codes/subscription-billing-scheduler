@@ -2,7 +2,7 @@ import type { ExecutionContext } from '@nestjs/common';
 import { UnauthorizedException } from '@nestjs/common';
 import type { AppConfigService } from '../../config/app-config.service';
 import type { AppLogger } from '../app-logger';
-import { OperatorGuard } from '../operator.guard';
+import { OperatorGuard } from '../guards/operator.guard';
 import type { RequestContext } from '../request-context';
 
 const TOKEN = '0123456789abcdef0123456789abcdef';
@@ -14,7 +14,7 @@ describe('OperatorGuard', () => {
     const logger = { info: logInfo } as unknown as AppLogger;
     const guard = new OperatorGuard(
         {
-            operator: { credentials: { 'operator-1': TOKEN } },
+            operator: { id: 'operator-1', token: TOKEN },
         } as unknown as AppConfigService,
         context,
         logger,
@@ -38,6 +38,7 @@ describe('OperatorGuard', () => {
     });
 });
 
+/** Builds a minimal HTTP execution context for guard tests. */
 function httpContext(authorization?: string): ExecutionContext {
     return {
         switchToHttp: () => ({

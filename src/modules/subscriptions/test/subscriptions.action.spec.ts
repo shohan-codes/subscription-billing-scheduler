@@ -16,6 +16,7 @@ import {
 } from '../subscriptions.errors';
 import type { SubscriptionRecord } from '../subscriptions.types';
 
+/** Builds a valid subscription creation request for action tests. */
 const validRequest = (): CreateSubscriptionRequest => ({
     customerReference: 'CUST-1001',
     description: 'Pro Plan - Monthly',
@@ -27,6 +28,7 @@ const validRequest = (): CreateSubscriptionRequest => ({
     anchorIsMonthEnd: true,
 });
 
+/** Builds the baseline persisted subscription used by action tests. */
 const currentSubscription = (): SubscriptionRecord => ({
     id: '81849854-7497-4ea4-a097-7aebf39f97f7',
     customer_reference: 'CUST-1001',
@@ -52,6 +54,7 @@ const currentSubscription = (): SubscriptionRecord => ({
     updated_at: new Date('2026-08-16T00:00:00.000Z'),
 });
 
+/** Builds a valid commercial subscription update for action tests. */
 const updateRequest = (): UpdateSubscriptionRequest => ({
     description: 'Pro Plan - Annual',
     version: 1,

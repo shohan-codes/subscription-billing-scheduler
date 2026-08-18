@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { daysInMonth } from '../../common/billing-date';
+import { daysInMonth } from '../../common/utils/calendar-date';
 import {
     SubscriptionBillingState,
     SubscriptionStatus,
@@ -150,7 +150,7 @@ export class SubscriptionsAction {
 }
 
 /** Checks whether a calendar date matches the preserved monthly billing anchor. */
-export function isBillingDateOnAnchor(
+function isBillingDateOnAnchor(
     date: string,
     anchorDay: number,
     isMonthEnd: boolean,
@@ -163,6 +163,7 @@ export function isBillingDateOnAnchor(
         : day === Math.min(anchorDay, monthEnd);
 }
 
+/** Validates subscription schedule date order and anchor consistency. */
 function validateScheduleOrThrow(
     startDate: string,
     billingDate: string,
@@ -177,6 +178,7 @@ function validateScheduleOrThrow(
     }
 }
 
+/** Checks whether an update request changes at least one editable field. */
 function hasUpdateFields(request: UpdateSubscriptionRequest): boolean {
     return (
         request.description !== undefined ||
@@ -188,6 +190,7 @@ function hasUpdateFields(request: UpdateSubscriptionRequest): boolean {
     );
 }
 
+/** Checks whether an update request changes the stored billing schedule. */
 function hasScheduleChanges(
     current: SubscriptionRecord,
     request: UpdateSubscriptionRequest,

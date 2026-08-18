@@ -15,6 +15,7 @@ export abstract class ResponseDto<
     @ApiHideProperty()
     declare protected readonly __responseSource: TSource;
 
+    /** Maps source values into the declared response DTO fields. */
     static from<TResponse extends ResponseDto<object>>(
         this: ResponseDtoConstructor<TResponse>,
         source: ResponseSource<TResponse>,

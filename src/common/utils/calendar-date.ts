@@ -15,6 +15,7 @@ export function daysInMonth(year: number, month: number): number {
     }
 }
 
-export function isLeapYear(year: number): boolean {
+/** Checks whether a Gregorian year contains a leap day. */
+function isLeapYear(year: number): boolean {
     return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
 }

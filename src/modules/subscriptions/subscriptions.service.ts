@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { isUUID } from 'class-validator';
 import { Clock } from '../../common/clock';
-import { CursorCodec } from '../../common/cursor-codec';
+import { CursorCodec } from '../../common/utils/cursor-codec';
 import { SubscriptionsAction } from './subscriptions.action';
 import { SUBSCRIPTION_DATE_PATTERN } from './subscriptions.constant';
 import {
@@ -168,6 +168,7 @@ export class SubscriptionsService {
     }
 }
 
+/** Validates the decoded cursor shape used by subscription listing. */
 function isSubscriptionListCursor(
     payload: Record<string, unknown>,
 ): payload is SubscriptionListCursor {

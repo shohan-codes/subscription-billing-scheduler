@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { CursorCodec } from '../cursor-codec';
+import { CursorCodec } from '../utils/cursor-codec';
 
 describe('CursorCodec', () => {
     const codec = new CursorCodec();

@@ -24,6 +24,7 @@ export type ApiRouteOptions = {
     envelope?: boolean;
 };
 
+/** Applies the standard OpenAPI contract for an API route. */
 export const ApiRoute = ({
     summary,
     status = 200,
@@ -82,6 +83,7 @@ type ResponseSchemaOptions = Pick<
     'responseType' | 'responseIsArray' | 'dataSchema' | 'envelope'
 >;
 
+/** Builds the success response schema for a route. */
 function makeResponseSchema({
     responseType,
     responseIsArray,
@@ -113,6 +115,7 @@ function makeResponseSchema({
     };
 }
 
+/** Builds a standard OpenAPI error response decorator. */
 function apiErrorResponse(status: number, description: string) {
     return ApiResponse({ status, description, schema: apiErrorSchema });
 }

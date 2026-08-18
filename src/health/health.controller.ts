@@ -14,6 +14,7 @@ import { DATABASE, type DatabaseClient } from '../database/database.module';
 export class HealthController {
     constructor(@Inject(DATABASE) private readonly database: DatabaseClient) {}
 
+    /** Returns process liveness without checking dependencies. */
     @Get('live')
     @ApiRoute({
         summary: 'Process liveness',
@@ -29,6 +30,7 @@ export class HealthController {
         return { status: 'ok' } as const;
     }
 
+    /** Returns database-backed application readiness. */
     @Get('ready')
     @ApiRoute({
         summary: 'Database readiness',

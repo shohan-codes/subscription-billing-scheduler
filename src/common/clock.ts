@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class Clock {
+    /** Returns the current instant. */
     now(): Date {
         return new Date();
     }

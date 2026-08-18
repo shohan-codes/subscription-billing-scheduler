@@ -57,6 +57,7 @@ export class RequestLoggingInterceptor implements NestInterceptor {
         );
     }
 
+    /** Builds bounded HTTP request fields for structured logging. */
     private fields(request: unknown, statusCode: number, startedAt: number) {
         const adapter = this.adapterHost.httpAdapter;
         const url = adapter.getRequestUrl(request) as string;

@@ -6,12 +6,11 @@ import {
     Injectable,
     UnauthorizedException,
 } from '@nestjs/common';
-import { AppConfigService } from '../config/app-config.service';
-import { AppLogger } from './app-logger';
-import { RequestContext } from './request-context';
+import { AppConfigService } from '../../config/app-config.service';
+import { AppLogger } from '../app-logger';
+import { RequestContext } from '../request-context';
 
 const BEARER_PREFIX = 'Bearer ';
-// ponytail: static operator tokens cover this service boundary; replace with upstream identity/roles when available.
 
 /** Authorizes operator/admin requests and records the requesting actor. */
 @Injectable()
@@ -22,14 +21,21 @@ export class OperatorGuard implements CanActivate {
         private readonly logger: AppLogger,
     ) {}
 
+    /** Authorizes a request with the configured operator bearer token. */
     canActivate(executionContext: ExecutionContext): boolean {
         const request = executionContext
             .switchToHttp()
             .getRequest<IncomingMessage>();
         const token = bearerToken(request.headers.authorization);
-        const actorId = token ? this.findActorId(token) : undefined;
+        const actorId = this.config.operator.id;
+        const expectedToken = this.config.operator.token;
 
-        if (!actorId) {
+        if (
+            !actorId ||
+            !token ||
+            !expectedToken ||
+            !secureEqual(token, expectedToken)
+        ) {
             throw new UnauthorizedException({
                 code: 'OPERATOR_AUTH_REQUIRED',
                 message: 'Operator authorization is required',
@@ -40,20 +46,16 @@ export class OperatorGuard implements CanActivate {
         this.logger.info('operator_authorized');
         return true;
     }
-
-    private findActorId(token: string): string | undefined {
-        return Object.entries(this.config.operator.credentials).find(
-            ([, expectedToken]) => secureEqual(token, expectedToken),
-        )?.[0];
-    }
 }
 
+/** Extracts a bearer token from an Authorization header. */
 function bearerToken(authorization: string | undefined): string | undefined {
     if (!authorization?.startsWith(BEARER_PREFIX)) return undefined;
     const token = authorization.slice(BEARER_PREFIX.length).trim();
     return token || undefined;
 }
 
+/** Compares secrets using equal-length digests and constant-time comparison. */
 function secureEqual(actual: string, expected: string): boolean {
     const actualDigest = createHash('sha256').update(actual).digest();
     const expectedDigest = createHash('sha256').update(expected).digest();

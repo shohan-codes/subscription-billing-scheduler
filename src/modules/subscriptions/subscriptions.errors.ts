@@ -5,7 +5,7 @@ import {
     UnprocessableEntityException,
 } from '@nestjs/common';
 
-export const SubscriptionErrorCode = {
+const SubscriptionErrorCode = {
     NotFound: 'SUBSCRIPTION_NOT_FOUND',
     EmptyUpdate: 'EMPTY_SUBSCRIPTION_UPDATE',
     VersionConflict: 'SUBSCRIPTION_VERSION_CONFLICT',

@@ -49,13 +49,31 @@ export class SubscriptionsRepository {
             .executeTakeFirstOrThrow();
     }
 
-    /** Updates a subscription only when its version and processing claim still permit it. */
+    /** Updates a subscription or throws when its optimistic preconditions no longer match. */
     async updateOrThrow(
         id: string,
         request: UpdateSubscriptionRequest,
         scheduleChanged: boolean,
         now: Date,
     ): Promise<SubscriptionRecord> {
+        const subscription = await this.update(
+            id,
+            request,
+            scheduleChanged,
+            now,
+        );
+
+        if (!subscription) throw new SubscriptionVersionConflictException();
+        return subscription;
+    }
+
+    /** Updates a subscription only when its version and processing claim still permit it. */
+    async update(
+        id: string,
+        request: UpdateSubscriptionRequest,
+        scheduleChanged: boolean,
+        now: Date,
+    ): Promise<SubscriptionRecord | undefined> {
         let statement = this.database
             .updateTable('subscriptions')
             .set({
@@ -89,19 +107,32 @@ export class SubscriptionsRepository {
             );
         }
 
-        const subscription = await statement.returningAll().executeTakeFirst();
-
-        if (!subscription) throw new SubscriptionVersionConflictException();
-        return subscription;
+        return statement.returningAll().executeTakeFirst();
     }
 
-    /** Changes lifecycle status only when the previously read status is still current. */
+    /** Changes lifecycle status or throws when the previously read status is stale. */
     async transitionStatusOrThrow(
         id: string,
         expectedStatus: SubscriptionStatus,
         status: SubscriptionStatus,
     ): Promise<SubscriptionRecord> {
-        const subscription = await this.database
+        const subscription = await this.transitionStatus(
+            id,
+            expectedStatus,
+            status,
+        );
+
+        if (!subscription) throw new SubscriptionStateConflictException();
+        return subscription;
+    }
+
+    /** Changes lifecycle status only when the previously read status is still current. */
+    transitionStatus(
+        id: string,
+        expectedStatus: SubscriptionStatus,
+        status: SubscriptionStatus,
+    ): Promise<SubscriptionRecord | undefined> {
+        return this.database
             .updateTable('subscriptions')
             .set({
                 status,
@@ -111,18 +142,35 @@ export class SubscriptionsRepository {
             .where('status', '=', expectedStatus)
             .returningAll()
             .executeTakeFirst();
-
-        if (!subscription) throw new SubscriptionStateConflictException();
-        return subscription;
     }
 
-    /** Clears a retry or blocked billing state only when the previously read state is unchanged. */
+    /** Recovers a retry or blocked billing state or throws when the read state is stale. */
     async recoverBillingStateOrThrow(
         id: string,
         expectedState: SubscriptionBillingState,
         expectedVersion: number,
     ): Promise<SubscriptionRecord> {
-        const subscription = await this.database
+        const subscription = await this.recoverBillingState(
+            id,
+            expectedState,
+            expectedVersion,
+        );
+
+        if (!subscription) {
+            throw new SubscriptionBillingRecoveryConflictException(
+                'Subscription billing state changed before recovery completed',
+            );
+        }
+        return subscription;
+    }
+
+    /** Clears a retry or blocked billing state only when the previously read state is unchanged. */
+    recoverBillingState(
+        id: string,
+        expectedState: SubscriptionBillingState,
+        expectedVersion: number,
+    ): Promise<SubscriptionRecord | undefined> {
+        return this.database
             .updateTable('subscriptions')
             .set({
                 billing_state: SubscriptionBillingState.Ready,
@@ -134,13 +182,6 @@ export class SubscriptionsRepository {
             .where('version', '=', expectedVersion)
             .returningAll()
             .executeTakeFirst();
-
-        if (!subscription) {
-            throw new SubscriptionBillingRecoveryConflictException(
-                'Subscription billing state changed before recovery completed',
-            );
-        }
-        return subscription;
     }
 
     /** Finds a subscription by ID or throws when missing. */

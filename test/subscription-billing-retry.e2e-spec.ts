@@ -20,6 +20,7 @@ type SubscriptionBody = {
 
 const OPERATOR_TOKEN = 'test-operator-token-1234567890';
 
+/** Builds a valid request payload for billing recovery E2E tests. */
 const createRequest = (customerReference: string) => ({
     customerReference,
     description: 'Billing Recovery Plan',
@@ -39,10 +40,10 @@ describe('Subscription billing retry (e2e)', () => {
         const moduleFixture: TestingModule = await Test.createTestingModule({
             imports: [AppModule],
         }).compile();
-        Object.assign(
-            moduleFixture.get(AppConfigService).operator.credentials,
-            { 'operator-test': OPERATOR_TOKEN },
-        );
+        Object.assign(moduleFixture.get(AppConfigService).operator, {
+            id: 'operator-test',
+            token: OPERATOR_TOKEN,
+        });
 
         app = moduleFixture.createNestApplication();
         app.useGlobalPipes(
@@ -165,12 +166,14 @@ describe('Subscription billing retry (e2e)', () => {
         await authorizedRequest(randomUUID()).send({}).expect(404);
     });
 
+    /** Builds an operator-authorized billing recovery request. */
     function authorizedRequest(id: string) {
         return request(app.getHttpServer())
             .post(`/api/v1/subscriptions/${id}/billing-retry`)
             .set('Authorization', `Bearer ${OPERATOR_TOKEN}`);
     }
 
+    /** Creates and tracks a subscription for the current E2E scenario. */
     async function createSubscription(): Promise<SubscriptionBody['data']> {
         const response = await request(app.getHttpServer())
             .post('/api/v1/subscriptions')

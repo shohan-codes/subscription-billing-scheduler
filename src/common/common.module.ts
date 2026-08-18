@@ -2,11 +2,11 @@ import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { AppLogger } from './app-logger';
 import { Clock } from './clock';
-import { CursorCodec } from './cursor-codec';
+import { CursorCodec } from './utils/cursor-codec';
 import { ApiExceptionFilter } from './filters/api-exception.filter';
 import { RequestLoggingInterceptor } from './interceptors/request-logging.interceptor';
 import { ResponseEnvelopeInterceptor } from './interceptors/response-envelope.interceptor';
-import { OperatorGuard } from './operator.guard';
+import { OperatorGuard } from './guards/operator.guard';
 import { RequestContext } from './request-context';
 import { ShutdownState } from './shutdown-state';
 

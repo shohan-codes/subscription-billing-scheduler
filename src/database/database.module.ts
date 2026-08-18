@@ -19,6 +19,7 @@ export type DatabaseClient = Kysely<DatabaseSchema>;
 class DatabaseShutdown implements OnApplicationShutdown {
     constructor(@Inject(DATABASE) private readonly database: DatabaseClient) {}
 
+    /** Closes the shared database client during application shutdown. */
     async onApplicationShutdown(): Promise<void> {
         await this.database.destroy();
     }
