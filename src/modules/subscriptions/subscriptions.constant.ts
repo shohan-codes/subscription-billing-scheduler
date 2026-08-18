@@ -17,3 +17,5 @@ export const SubscriptionBillingState = {
 
 export type SubscriptionBillingState =
     (typeof SubscriptionBillingState)[keyof typeof SubscriptionBillingState];
+
+export const SUBSCRIPTION_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;

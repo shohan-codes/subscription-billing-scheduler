@@ -25,6 +25,7 @@
         "typecheck": "tsc --noEmit",
         "db:migrate": "kysely migrate latest",
         "db:rollback": "kysely migrate rollback --all",
+        "db:seed": "ts-node scripts/seed-subscriptions.ts",
         "db:migration:create": "kysely migrate make"
     },
     "dependencies": {
