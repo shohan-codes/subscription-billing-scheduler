@@ -368,6 +368,21 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
             return skipped;
         }
 
+        const staleBefore = this.action.createStaleRunThreshold(
+            triggeredAt,
+            this.config.billing.leaseSeconds,
+        );
+        const abandoned = await this.repository.abandonStaleRuns(
+            BILLING_SCHEDULER_JOB_NAME,
+            staleBefore,
+            triggeredAt,
+        );
+        if (abandoned.length > 0) {
+            this.logger.warn('billing.run.abandoned_recovered', {
+                abandonedCount: abandoned.length,
+            });
+        }
+
         let run: SchedulerRunRecord | undefined;
         const counters: SchedulerRunCounters = { ...EMPTY_COUNTERS };
 

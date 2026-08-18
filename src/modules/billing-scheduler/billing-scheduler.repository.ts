@@ -286,6 +286,35 @@ export class BillingSchedulerRepository {
             .executeTakeFirstOrThrow();
     }
 
+    /** Marks stale running attempts abandoned without changing their existing item history. */
+    abandonStaleRuns(
+        jobName: string,
+        staleBefore: Date,
+        abandonedAt: Date,
+    ): Promise<SchedulerRunRecord[]> {
+        return this.database
+            .updateTable('scheduler_runs')
+            .set({
+                status: 'abandoned',
+                completed_at: abandonedAt,
+                error_code: 'SCHEDULER_RUN_ABANDONED',
+                error_message: 'Scheduler run heartbeat expired before completion',
+            })
+            .where('job_name', '=', jobName)
+            .where('status', '=', 'running')
+            .where((eb) =>
+                eb.or([
+                    eb('last_heartbeat_at', '<=', staleBefore),
+                    eb.and([
+                        eb('last_heartbeat_at', 'is', null),
+                        eb('triggered_at', '<=', staleBefore),
+                    ]),
+                ]),
+            )
+            .returningAll()
+            .execute();
+    }
+
     /** Finalizes a running scheduler record or throws when ownership changed. */
     async finalizeRunOrThrow(
         runId: string,
