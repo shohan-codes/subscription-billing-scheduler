@@ -36,6 +36,17 @@ describe('BillingSchedulerAction', () => {
         );
     });
 
+    it('derives abandoned-run staleness from the coordinator lease window', () => {
+        expect(
+            action
+                .createStaleRunThreshold(
+                    new Date('2026-08-18T10:02:00.000Z'),
+                    120,
+                )
+                .toISOString(),
+        ).toBe('2026-08-18T10:00:00.000Z');
+    });
+
     it('rejects new triggers after scheduler shutdown begins', () => {
         expect(() => action.validateTriggerAllowedOrThrow(true)).toThrow(
             SchedulerShuttingDownException,

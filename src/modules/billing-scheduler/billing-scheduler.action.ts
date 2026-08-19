@@ -145,6 +145,11 @@ export class BillingSchedulerAction {
         };
     }
 
+    /** Calculates the heartbeat threshold used to abandon stale running scheduler records. */
+    createStaleRunThreshold(now: Date, leaseSeconds: number): Date {
+        return new Date(now.getTime() - leaseSeconds * 1000);
+    }
+
     /** Rejects a trigger that begins after scheduler shutdown has started. */
     validateTriggerAllowedOrThrow(isShuttingDown: boolean): void {
         if (isShuttingDown) throw new SchedulerShuttingDownException();

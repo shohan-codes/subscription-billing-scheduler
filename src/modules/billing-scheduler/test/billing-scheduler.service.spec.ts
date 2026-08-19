@@ -76,6 +76,9 @@ function createService(acquired: boolean, shuttingDown = false) {
             createClaimExpiry: jest.fn(
                 (now: Date) => new Date(now.getTime() + 300_000),
             ),
+            createStaleRunThreshold: jest.fn(
+                (now: Date) => new Date(now.getTime() - 120_000),
+            ),
             validateTriggerAllowedOrThrow: jest.fn(),
             resolveCompletedStatus: jest.fn(() => SchedulerRunStatus.Completed),
             classifyItemFailure: jest.fn(),
@@ -90,6 +93,7 @@ function createService(acquired: boolean, shuttingDown = false) {
         {
             acquireLease,
             claimDueBatch: jest.fn().mockResolvedValue([]),
+            abandonStaleRuns: jest.fn().mockResolvedValue([]),
             createRunOrThrow,
             finalizeRunOrThrow,
             finalizeRun: jest.fn(),
