@@ -25,6 +25,17 @@ describe('BillingSchedulerAction', () => {
         );
     });
 
+    it('creates bounded subscription claim ownership and expiry', () => {
+        const now = new Date('2026-08-18T10:00:00.000Z');
+        const owner = action.createClaimOwner('instance-a');
+
+        expect(owner).toMatch(/^instance-a:/);
+        expect(owner.length).toBeLessThanOrEqual(120);
+        expect(action.createClaimExpiry(now, 300).toISOString()).toBe(
+            '2026-08-18T10:05:00.000Z',
+        );
+    });
+
     it('rejects new triggers after scheduler shutdown begins', () => {
         expect(() => action.validateTriggerAllowedOrThrow(true)).toThrow(
             SchedulerShuttingDownException,

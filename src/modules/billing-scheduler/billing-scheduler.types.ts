@@ -31,6 +31,13 @@ export interface DueSubscriptionBatchQuery {
     limit: number;
 }
 
+export interface SubscriptionBatchClaimQuery extends DueSubscriptionBatchQuery {
+    runId: string;
+    owner: string;
+    claimStartedAt: Date;
+    claimExpiresAt: Date;
+}
+
 export interface SchedulerHeartbeatContext {
     lockName: string;
     ownerToken: string;

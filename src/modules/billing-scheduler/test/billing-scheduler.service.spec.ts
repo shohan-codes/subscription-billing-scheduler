@@ -2,6 +2,7 @@ import type { AppLogger } from '../../../common/app-logger';
 import type { ShutdownState } from '../../../common/shutdown-state';
 import type { CursorCodec } from '../../../common/utils/cursor-codec';
 import type { AppConfigService } from '../../../config/app-config.service';
+import type { InvoicesService } from '../../invoices/invoices.service';
 import { SchedulerRunStatus } from '../billing-scheduler.constant';
 import type { BillingSchedulerHeartbeat } from '../billing-scheduler.heartbeat';
 import type { BillingSchedulerRepository } from '../billing-scheduler.repository';
@@ -55,6 +56,8 @@ function createService(acquired: boolean, shuttingDown = false) {
             billing: {
                 leaseSeconds: 120,
                 timezone: 'UTC',
+                batchSize: 100,
+                claimSeconds: 300,
             },
         } as unknown as AppConfigService,
         {
@@ -68,6 +71,10 @@ function createService(acquired: boolean, shuttingDown = false) {
         } as unknown as ShutdownState,
         {
             createLeaseRequest: jest.fn(() => request),
+            createClaimOwner: jest.fn(() => 'instance-a:claim-owner'),
+            createClaimExpiry: jest.fn(
+                (now: Date) => new Date(now.getTime() + 300_000),
+            ),
             validateTriggerAllowedOrThrow: jest.fn(),
             resolveCompletedStatus: jest.fn(() => SchedulerRunStatus.Completed),
             resolveSafeRunFailure: jest.fn(() => ({
@@ -78,6 +85,7 @@ function createService(acquired: boolean, shuttingDown = false) {
         },
         {
             acquireLease,
+            claimDueBatch: jest.fn().mockResolvedValue([]),
             createRunOrThrow,
             finalizeRunOrThrow,
             finalizeRun: jest.fn(),
@@ -88,6 +96,7 @@ function createService(acquired: boolean, shuttingDown = false) {
             stop,
             isLeaseLost: false,
         } as unknown as BillingSchedulerHeartbeat,
+        { generateClaimed: jest.fn() } as unknown as InvoicesService,
         {} as CursorCodec,
         { info, error: jest.fn() } as unknown as AppLogger,
     );
