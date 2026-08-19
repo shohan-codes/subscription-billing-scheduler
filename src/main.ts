@@ -11,12 +11,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AppConfigService } from './config/app-config.service';
 
-/**
- * Starts the HTTP application with shared runtime policies.
- *
- * - Uses startup-validated `AppConfigService` values.
- * - Any bootstrap failure must prevent the process from serving traffic.
- */
+/** Starts the HTTP application with shared runtime policies. */
 async function bootstrap(): Promise<void> {
     const app = await NestFactory.create<NestExpressApplication>(AppModule, {
         bufferLogs: true,

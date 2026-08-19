@@ -13,24 +13,27 @@ import request from 'supertest';
 import { AppConfigModule } from '../../config/app-config.module';
 import { CommonModule } from '../common.module';
 import { SkipEnvelope } from '../decorators/skip-envelope.decorator';
-import { RequestIdMiddleware } from '../request-id.middleware';
+import { RequestIdMiddleware } from '../middleware/request-id.middleware';
 
 process.env.DATABASE_URL ??=
     'postgresql://billing:billing@localhost:5432/subscription_billing';
 
 @Controller()
 class TestController {
+    /** Returns a response that should receive the global envelope. */
     @Get('wrapped')
     wrapped() {
         return { value: 42 };
     }
 
+    /** Returns a response that opts out of the global envelope. */
     @Get('raw')
     @SkipEnvelope()
     raw() {
         return { value: 42 };
     }
 
+    /** Throws a controlled validation-style API error. */
     @Get('invalid')
     invalid(): never {
         throw new BadRequestException({
@@ -46,6 +49,7 @@ class TestController {
     controllers: [TestController],
 })
 class TestModule implements NestModule {
+    /** Registers request ID middleware for the test module. */
     configure(consumer: MiddlewareConsumer): void {
         consumer.apply(RequestIdMiddleware).forRoutes('*');
     }
