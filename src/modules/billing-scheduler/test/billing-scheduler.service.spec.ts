@@ -2,6 +2,7 @@ import type { AppLogger } from '../../../common/app-logger';
 import type { ShutdownState } from '../../../common/shutdown-state';
 import type { CursorCodec } from '../../../common/utils/cursor-codec';
 import type { AppConfigService } from '../../../config/app-config.service';
+import { $invoice } from '../../invoices/invoices.constant';
 import type { InvoicesService } from '../../invoices/invoices.service';
 import { $billingScheduler } from '../billing-scheduler.constant';
 import type { BillingSchedulerHeartbeat } from '../billing-scheduler.heartbeat';
@@ -10,6 +11,7 @@ import type { BillingSchedulerRepository } from '../billing-scheduler.repository
 import { BillingSchedulerAction } from '../billing-scheduler.action';
 import { BillingSchedulerService } from '../billing-scheduler.service';
 import type {
+    DueSubscriptionRecord,
     SchedulerLeaseRequest,
     SchedulerRunInsert,
     SchedulerRunRecord,
@@ -23,8 +25,18 @@ const request: SchedulerLeaseRequest = {
     leaseExpiresAt: new Date('2026-08-18T10:02:00.000Z'),
 };
 
+type ServiceOptions = {
+    concurrency?: number;
+    claimedBatches?: DueSubscriptionRecord[][];
+    generateClaimedCatchUp?: jest.Mock;
+};
+
 /** Builds the scheduler service with focused mocks for coordinator tests. */
-function createService(acquired: boolean, shuttingDown = false) {
+function createService(
+    acquired: boolean,
+    shuttingDown = false,
+    options: ServiceOptions = {},
+) {
     const acquireLease = jest.fn().mockResolvedValue(
         acquired
             ? {
@@ -33,6 +45,15 @@ function createService(acquired: boolean, shuttingDown = false) {
               }
             : undefined,
     );
+    const claimedBatches = [...(options.claimedBatches ?? [])];
+    const claimDueBatchWithStats = jest.fn().mockImplementation(() =>
+        Promise.resolve({
+            subscriptions: claimedBatches.shift() ?? [],
+            expiredClaimCount: 0,
+        }),
+    );
+    const generateClaimedCatchUp =
+        options.generateClaimedCatchUp ?? jest.fn();
     const createRunOrThrow = jest
         .fn()
         .mockImplementation((insert: SchedulerRunInsert) =>
@@ -71,6 +92,7 @@ function createService(acquired: boolean, shuttingDown = false) {
                 LEASE_SECONDS: 120,
                 TIMEZONE: 'UTC',
                 BATCH_SIZE: 100,
+                CONCURRENCY: options.concurrency ?? 5,
                 CLAIM_SECONDS: 300,
                 MAX_RUN_SECONDS: 1800,
                 MAX_ITEMS_PER_RUN: 100_000,
@@ -112,10 +134,7 @@ function createService(acquired: boolean, shuttingDown = false) {
         } as unknown as BillingSchedulerAction,
         {
             acquireLease,
-            claimDueBatchWithStats: jest.fn().mockResolvedValue({
-                subscriptions: [],
-                expiredClaimCount: 0,
-            }),
+            claimDueBatchWithStats,
             countDueSubscriptions: jest.fn().mockResolvedValue([]),
             abandonStaleRuns: jest.fn().mockResolvedValue([]),
             createRunOrThrow,
@@ -128,7 +147,7 @@ function createService(acquired: boolean, shuttingDown = false) {
             stop,
             isLeaseLost: false,
         } as unknown as BillingSchedulerHeartbeat,
-        { generateClaimedCatchUp: jest.fn() } as unknown as InvoicesService,
+        { generateClaimedCatchUp } as unknown as InvoicesService,
         {} as CursorCodec,
         {
             info,
@@ -156,6 +175,8 @@ function createService(acquired: boolean, shuttingDown = false) {
         stop,
         beginShutdown,
         info,
+        claimDueBatchWithStats,
+        generateClaimedCatchUp,
     };
 }
 
@@ -196,6 +217,43 @@ describe('BillingSchedulerService', () => {
                 result: $billingScheduler.runStatus.SKIPPED_LOCK_UNAVAILABLE,
             }),
         );
+    });
+
+    it('bounds local item processing by the configured concurrency', async () => {
+        let active = 0;
+        let maxActive = 0;
+        const generateClaimedCatchUp = jest.fn().mockImplementation(async () => {
+            active += 1;
+            maxActive = Math.max(maxActive, active);
+            await new Promise((resolve) => setImmediate(resolve));
+            active -= 1;
+            return {
+                result: $invoice.generationOutcome.CREATED,
+                invoices: [],
+                nextBillingDate: '2026-09-18',
+                periodsProcessed: 1,
+                invoicesCreated: 1,
+                createdCurrencies: ['USD'],
+                limitReached: false,
+            };
+        });
+        const batch = Array.from({ length: 4 }, (_, index) =>
+            ({
+                id: `00000000-0000-4000-8000-00000000010${index}`,
+                next_billing_date: '2026-08-18',
+                billing_failure_count: 0,
+            }) as DueSubscriptionRecord,
+        );
+        const { service } = createService(true, false, {
+            concurrency: 2,
+            claimedBatches: [batch],
+            generateClaimedCatchUp,
+        });
+
+        await service.triggerScheduled();
+
+        expect(generateClaimedCatchUp).toHaveBeenCalledTimes(4);
+        expect(maxActive).toBe(2);
     });
 
     it('finalizes and releases only the exact acquired owner lease', async () => {

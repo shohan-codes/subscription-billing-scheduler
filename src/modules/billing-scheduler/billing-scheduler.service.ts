@@ -27,6 +27,7 @@ import { BillingSchedulerHeartbeat } from './billing-scheduler.heartbeat';
 import { BillingSchedulerMetrics } from './billing-scheduler.metrics';
 import { BillingSchedulerRepository } from './billing-scheduler.repository';
 import type {
+    DueSubscriptionRecord,
     SchedulerRunCounters,
     SchedulerRunItemListCursor,
     SchedulerRunListCursor,
@@ -267,167 +268,180 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
             counters.eligibleCount += batch.length;
             counters.claimedCount += batch.length;
 
-            for (const subscription of batch) {
-                if (this.heartbeat.isLeaseLost) {
-                    return $billingScheduler.processingStopReason.LEASE_LOST;
-                }
-                if (this.shutdownState.isShuttingDown) {
-                    return $billingScheduler.processingStopReason
-                        .SHUTDOWN_INTERRUPTED;
-                }
-
-                const itemStartedAt = this.clock.now();
-                if (
-                    this.action.isRunDurationLimitReached(
-                        startedAt,
-                        itemStartedAt,
-                        this.config.billing.MAX_RUN_SECONDS,
-                    )
-                ) {
-                    return $billingScheduler.processingStopReason
-                        .RUN_LIMIT_REACHED;
-                }
-                this.metrics.recordScheduleLag(
-                    run.cutoff_date,
-                    subscription.next_billing_date,
+            for (
+                let index = 0;
+                index < batch.length;
+                index += this.config.billing.CONCURRENCY
+            ) {
+                const chunk = batch.slice(
+                    index,
+                    index + this.config.billing.CONCURRENCY,
                 );
-
-                try {
-                    const result = await this.invoices.generateClaimedCatchUp({
-                        subscriptionId: subscription.id,
-                        runId: run.id,
-                        owner: claimOwner,
-                        cutoffDate: run.cutoff_date,
-                        maxPeriods: this.config.billing.MAX_CATCH_UP_PERIODS,
-                    });
-                    const completedAt = this.clock.now();
-                    const itemResult =
-                        result.invoicesCreated > 0
-                            ? $billingScheduler.runItemResult.SUCCESS
-                            : $billingScheduler.runItemResult
-                                  .DUPLICATE_CONFIRMED;
-                    const durationMs = elapsedMs(itemStartedAt, completedAt);
-                    counters.succeededCount += 1;
-                    counters.invoicesCreatedCount += result.invoicesCreated;
-                    this.metrics.recordItem(
-                        itemResult,
-                        $billingScheduler.metricLabel.NONE,
-                        durationMs,
-                    );
-                    this.metrics.recordInvoices(result.createdCurrencies);
-                    this.logger.info(
-                        $billingScheduler.logEvent.ITEM_COMPLETED,
-                        {
-                            runId: run.id,
-                            subscriptionId: subscription.id,
-                            durationMs,
-                            result: itemResult,
-                            invoicesCreated: result.invoicesCreated,
-                        },
-                    );
-                } catch (error) {
-                    const completedAt = this.clock.now();
-                    const failure = this.action.classifyItemFailure(
-                        error,
-                        subscription.billing_failure_count,
-                        completedAt,
-                    );
-
-                    if (
-                        failure.type ===
-                            $billingScheduler.failureType.LEASE_LOST ||
-                        failure.type ===
-                            $billingScheduler.failureType.SHUTDOWN_INTERRUPTED
-                    ) {
-                        await this.repository.createRunItemOrThrow({
-                            id: randomUUID(),
-                            run_id: run.id,
-                            subscription_id: subscription.id,
-                            result: $billingScheduler.runItemResult.SKIPPED,
-                            before_billing_date: subscription.next_billing_date,
-                            after_billing_date: null,
-                            invoices_created: 0,
-                            error_type: null,
-                            error_code: failure.code,
-                            error_message: failure.message,
-                            started_at: itemStartedAt,
-                            completed_at: completedAt,
-                        });
-                        const durationMs = elapsedMs(
-                            itemStartedAt,
-                            this.clock.now(),
-                        );
-                        counters.skippedCount += 1;
-                        this.metrics.recordItem(
-                            $billingScheduler.runItemResult.SKIPPED,
-                            failure.code,
-                            durationMs,
-                        );
-                        this.logger.warn(
-                            $billingScheduler.logEvent.ITEM_SKIPPED,
-                            {
-                                runId: run.id,
-                                subscriptionId: subscription.id,
-                                durationMs,
-                                result: $billingScheduler.runItemResult.SKIPPED,
-                                errorCode: failure.code,
-                            },
-                        );
-                        continue;
-                    }
-
-                    const recorded = await this.repository.recordItemFailure({
-                        subscriptionId: subscription.id,
-                        runId: run.id,
-                        owner: claimOwner,
-                        beforeBillingDate: subscription.next_billing_date,
-                        startedAt: itemStartedAt,
-                        completedAt,
-                        failure,
-                    });
-                    const durationMs = elapsedMs(
-                        itemStartedAt,
-                        this.clock.now(),
-                    );
-
-                    if (recorded) {
-                        counters.failedCount += 1;
-                        this.metrics.recordItem(
-                            $billingScheduler.runItemResult.FAILED,
-                            failure.code,
-                            durationMs,
-                        );
-                        this.logger.warn(
-                            $billingScheduler.logEvent.ITEM_FAILED,
-                            {
-                                runId: run.id,
-                                subscriptionId: subscription.id,
-                                durationMs,
-                                result: $billingScheduler.runItemResult.FAILED,
-                                errorCode: failure.code,
-                            },
-                        );
-                    } else {
-                        counters.skippedCount += 1;
-                        this.metrics.recordItem(
-                            $billingScheduler.runItemResult.SKIPPED,
-                            $invoice.errorCode.SUBSCRIPTION_CLAIM_LOST,
-                            durationMs,
-                        );
-                        this.logger.warn(
-                            $billingScheduler.logEvent.ITEM_CLAIM_LOST,
-                            {
-                                runId: run.id,
-                                subscriptionId: subscription.id,
-                                durationMs,
-                                result: $billingScheduler.runItemResult.SKIPPED,
-                                errorCode:
-                                    $invoice.errorCode.SUBSCRIPTION_CLAIM_LOST,
-                            },
-                        );
-                    }
-                }
+                const stopReasons = await Promise.all(
+                    chunk.map((subscription) =>
+                        this.processClaimedSubscription(
+                            run,
+                            claimOwner,
+                            counters,
+                            startedAt,
+                            subscription,
+                        ),
+                    ),
+                );
+                const stopReason = stopReasons.find(
+                    (reason): reason is SchedulerProcessingStopReason =>
+                        reason !== undefined,
+                );
+                if (stopReason) return stopReason;
             }
+        }
+    }
+
+    /** Processes one claimed subscription while preserving item-level failure isolation. */
+    private async processClaimedSubscription(
+        run: SchedulerRunRecord,
+        claimOwner: string,
+        counters: SchedulerRunCounters,
+        runStartedAt: Date,
+        subscription: DueSubscriptionRecord,
+    ): Promise<SchedulerProcessingStopReason | undefined> {
+        if (this.heartbeat.isLeaseLost) {
+            return $billingScheduler.processingStopReason.LEASE_LOST;
+        }
+        if (this.shutdownState.isShuttingDown) {
+            return $billingScheduler.processingStopReason.SHUTDOWN_INTERRUPTED;
+        }
+
+        const itemStartedAt = this.clock.now();
+        if (
+            this.action.isRunDurationLimitReached(
+                runStartedAt,
+                itemStartedAt,
+                this.config.billing.MAX_RUN_SECONDS,
+            )
+        ) {
+            return $billingScheduler.processingStopReason.RUN_LIMIT_REACHED;
+        }
+        this.metrics.recordScheduleLag(
+            run.cutoff_date,
+            subscription.next_billing_date,
+        );
+
+        try {
+            const result = await this.invoices.generateClaimedCatchUp({
+                subscriptionId: subscription.id,
+                runId: run.id,
+                owner: claimOwner,
+                cutoffDate: run.cutoff_date,
+                maxPeriods: this.config.billing.MAX_CATCH_UP_PERIODS,
+            });
+            const completedAt = this.clock.now();
+            const itemResult =
+                result.invoicesCreated > 0
+                    ? $billingScheduler.runItemResult.SUCCESS
+                    : $billingScheduler.runItemResult.DUPLICATE_CONFIRMED;
+            const durationMs = elapsedMs(itemStartedAt, completedAt);
+            counters.succeededCount += 1;
+            counters.invoicesCreatedCount += result.invoicesCreated;
+            this.metrics.recordItem(
+                itemResult,
+                $billingScheduler.metricLabel.NONE,
+                durationMs,
+            );
+            this.metrics.recordInvoices(result.createdCurrencies);
+            this.logger.info($billingScheduler.logEvent.ITEM_COMPLETED, {
+                runId: run.id,
+                subscriptionId: subscription.id,
+                durationMs,
+                result: itemResult,
+                invoicesCreated: result.invoicesCreated,
+            });
+            return undefined;
+        } catch (error) {
+            const completedAt = this.clock.now();
+            const failure = this.action.classifyItemFailure(
+                error,
+                subscription.billing_failure_count,
+                completedAt,
+            );
+
+            if (
+                failure.type === $billingScheduler.failureType.LEASE_LOST ||
+                failure.type ===
+                    $billingScheduler.failureType.SHUTDOWN_INTERRUPTED
+            ) {
+                await this.repository.createRunItemOrThrow({
+                    id: randomUUID(),
+                    run_id: run.id,
+                    subscription_id: subscription.id,
+                    result: $billingScheduler.runItemResult.SKIPPED,
+                    before_billing_date: subscription.next_billing_date,
+                    after_billing_date: null,
+                    invoices_created: 0,
+                    error_type: null,
+                    error_code: failure.code,
+                    error_message: failure.message,
+                    started_at: itemStartedAt,
+                    completed_at: completedAt,
+                });
+                const durationMs = elapsedMs(itemStartedAt, this.clock.now());
+                counters.skippedCount += 1;
+                this.metrics.recordItem(
+                    $billingScheduler.runItemResult.SKIPPED,
+                    failure.code,
+                    durationMs,
+                );
+                this.logger.warn($billingScheduler.logEvent.ITEM_SKIPPED, {
+                    runId: run.id,
+                    subscriptionId: subscription.id,
+                    durationMs,
+                    result: $billingScheduler.runItemResult.SKIPPED,
+                    errorCode: failure.code,
+                });
+                return undefined;
+            }
+
+            const recorded = await this.repository.recordItemFailure({
+                subscriptionId: subscription.id,
+                runId: run.id,
+                owner: claimOwner,
+                beforeBillingDate: subscription.next_billing_date,
+                startedAt: itemStartedAt,
+                completedAt,
+                failure,
+            });
+            const durationMs = elapsedMs(itemStartedAt, this.clock.now());
+
+            if (recorded) {
+                counters.failedCount += 1;
+                this.metrics.recordItem(
+                    $billingScheduler.runItemResult.FAILED,
+                    failure.code,
+                    durationMs,
+                );
+                this.logger.warn($billingScheduler.logEvent.ITEM_FAILED, {
+                    runId: run.id,
+                    subscriptionId: subscription.id,
+                    durationMs,
+                    result: $billingScheduler.runItemResult.FAILED,
+                    errorCode: failure.code,
+                });
+            } else {
+                counters.skippedCount += 1;
+                this.metrics.recordItem(
+                    $billingScheduler.runItemResult.SKIPPED,
+                    $invoice.errorCode.SUBSCRIPTION_CLAIM_LOST,
+                    durationMs,
+                );
+                this.logger.warn($billingScheduler.logEvent.ITEM_CLAIM_LOST, {
+                    runId: run.id,
+                    subscriptionId: subscription.id,
+                    durationMs,
+                    result: $billingScheduler.runItemResult.SKIPPED,
+                    errorCode: $invoice.errorCode.SUBSCRIPTION_CLAIM_LOST,
+                });
+            }
+            return undefined;
         }
     }
 
