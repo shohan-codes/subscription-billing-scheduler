@@ -7,13 +7,19 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { sql } from 'kysely';
 import { ApiRoute } from '../common/decorators/api-route.decorator';
-import { DATABASE, type DatabaseClient } from '../database/database.module';
+import { $database } from '../database/database.constant';
+import type { DatabaseClient } from '../database/database.module';
+import { $health } from './health.constant';
 
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
-    constructor(@Inject(DATABASE) private readonly database: DatabaseClient) {}
+    constructor(
+        @Inject($database.token.CLIENT)
+        private readonly database: DatabaseClient,
+    ) {}
 
+    /** Returns process liveness without checking dependencies. */
     @Get('live')
     @ApiRoute({
         summary: 'Process liveness',
@@ -29,6 +35,7 @@ export class HealthController {
         return { status: 'ok' } as const;
     }
 
+    /** Returns database-backed application readiness. */
     @Get('ready')
     @ApiRoute({
         summary: 'Database readiness',
@@ -54,7 +61,7 @@ export class HealthController {
             return { status: 'ok', checks: { database: 'up' } } as const;
         } catch {
             throw new ServiceUnavailableException({
-                code: 'DATABASE_UNAVAILABLE',
+                code: $health.errorCode.DATABASE_UNAVAILABLE,
                 message: 'Database readiness check failed',
             });
         }

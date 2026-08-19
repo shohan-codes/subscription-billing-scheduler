@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { $common } from '../common.constant';
 
 export type ApiError = {
     statusCode: number;
@@ -12,7 +13,7 @@ export function resolveApiError(exception: unknown): ApiError {
     if (!(exception instanceof HttpException)) {
         return {
             statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-            code: 'INTERNAL_SERVER_ERROR',
+            code: $common.errorCode.INTERNAL_SERVER_ERROR,
             message: 'Internal server error',
         };
     }
@@ -57,21 +58,23 @@ export function resolveApiError(exception: unknown): ApiError {
 }
 
 const HTTP_ERROR_CODES: Partial<Record<number, string>> = {
-    [HttpStatus.BAD_REQUEST]: 'BAD_REQUEST',
-    [HttpStatus.UNAUTHORIZED]: 'UNAUTHORIZED',
-    [HttpStatus.FORBIDDEN]: 'FORBIDDEN',
-    [HttpStatus.NOT_FOUND]: 'NOT_FOUND',
-    [HttpStatus.CONFLICT]: 'CONFLICT',
-    [HttpStatus.UNPROCESSABLE_ENTITY]: 'UNPROCESSABLE_ENTITY',
-    [HttpStatus.TOO_MANY_REQUESTS]: 'TOO_MANY_REQUESTS',
-    [HttpStatus.INTERNAL_SERVER_ERROR]: 'INTERNAL_SERVER_ERROR',
-    [HttpStatus.SERVICE_UNAVAILABLE]: 'SERVICE_UNAVAILABLE',
+    [HttpStatus.BAD_REQUEST]: $common.errorCode.BAD_REQUEST,
+    [HttpStatus.UNAUTHORIZED]: $common.errorCode.UNAUTHORIZED,
+    [HttpStatus.FORBIDDEN]: $common.errorCode.FORBIDDEN,
+    [HttpStatus.NOT_FOUND]: $common.errorCode.NOT_FOUND,
+    [HttpStatus.CONFLICT]: $common.errorCode.CONFLICT,
+    [HttpStatus.UNPROCESSABLE_ENTITY]: $common.errorCode.UNPROCESSABLE_ENTITY,
+    [HttpStatus.TOO_MANY_REQUESTS]: $common.errorCode.TOO_MANY_REQUESTS,
+    [HttpStatus.INTERNAL_SERVER_ERROR]: $common.errorCode.INTERNAL_SERVER_ERROR,
+    [HttpStatus.SERVICE_UNAVAILABLE]: $common.errorCode.SERVICE_UNAVAILABLE,
 };
 
+/** Maps an HTTP status to a stable fallback error code. */
 function statusCodeToCode(statusCode: number): string {
     return HTTP_ERROR_CODES[statusCode] ?? `HTTP_${statusCode}`;
 }
 
+/** Checks whether a value is a non-null record. */
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
 }

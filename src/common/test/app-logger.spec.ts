@@ -10,11 +10,11 @@ describe('AppLogger', () => {
             .spyOn(Logger.prototype, 'log')
             .mockImplementation(() => undefined);
         const logger = new AppLogger(
-            { app: { instanceId: 'instance-1' } } as AppConfigService,
+            { app: { INSTANCE_ID: 'instance-1' } } as AppConfigService,
             {
                 now: () => new Date('2026-08-17T04:00:00.000Z'),
             } as Clock,
-            { requestId: 'request-1' } as RequestContext,
+            { requestId: 'request-1', actorId: 'operator-1' } as RequestContext,
         );
 
         logger.info('billing.run.started', {
@@ -29,6 +29,7 @@ describe('AppLogger', () => {
             level: 'info',
             event: 'billing.run.started',
             requestId: 'request-1',
+            actorId: 'operator-1',
             instanceId: 'instance-1',
         });
         output.mockRestore();
