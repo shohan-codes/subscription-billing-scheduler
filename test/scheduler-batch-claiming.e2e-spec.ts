@@ -50,17 +50,17 @@ describe('Due subscription batch claiming (e2e)', () => {
                     status: $subscription.status.PAUSED,
                 }),
                 subscription(randomUUID(), '2026-08-18', {
-                    status: 'canceled',
+                    status: $subscription.status.CANCELED,
                 }),
                 subscription(randomUUID(), '2026-08-18', {
-                    billing_state: 'blocked',
+                    billing_state: $subscription.billingState.BLOCKED,
                 }),
                 subscription(randomUUID(), '2026-08-18', {
-                    billing_state: 'retry_wait',
+                    billing_state: $subscription.billingState.RETRY_WAIT,
                     billing_retry_at: new Date('2026-08-18T13:00:00.000Z'),
                 }),
                 subscription(fourthId, '2026-08-18', {
-                    billing_state: 'retry_wait',
+                    billing_state: $subscription.billingState.RETRY_WAIT,
                     billing_retry_at: new Date('2026-08-18T11:00:00.000Z'),
                 }),
             ])
@@ -145,8 +145,9 @@ function subscription(
         id,
         customer_reference: CUSTOMER_REFERENCE,
         description: 'Claim test subscription',
-        status: overrides.status ?? 'active',
-        billing_state: overrides.billing_state ?? 'ready',
+        status: overrides.status ?? $subscription.status.ACTIVE,
+        billing_state:
+            overrides.billing_state ?? $subscription.billingState.READY,
         currency: 'USD',
         amount: '10.0000',
         start_date: '2026-01-01',
