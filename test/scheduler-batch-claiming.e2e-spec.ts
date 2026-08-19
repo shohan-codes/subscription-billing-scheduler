@@ -45,7 +45,9 @@ describe('Due subscription batch claiming (e2e)', () => {
                 subscription(secondId, '2026-08-18'),
                 subscription(randomUUID(), '2026-08-19'),
                 subscription(randomUUID(), '2026-08-18', { status: 'paused' }),
-                subscription(randomUUID(), '2026-08-18', { status: 'canceled' }),
+                subscription(randomUUID(), '2026-08-18', {
+                    status: 'canceled',
+                }),
                 subscription(randomUUID(), '2026-08-18', {
                     billing_state: 'blocked',
                 }),
