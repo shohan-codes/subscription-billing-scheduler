@@ -6,6 +6,7 @@ import type { InvoicesService } from '../../invoices/invoices.service';
 import { SchedulerRunStatus } from '../billing-scheduler.constant';
 import type { BillingSchedulerHeartbeat } from '../billing-scheduler.heartbeat';
 import type { BillingSchedulerRepository } from '../billing-scheduler.repository';
+import { BillingSchedulerAction } from '../billing-scheduler.action';
 import { BillingSchedulerService } from '../billing-scheduler.service';
 import type {
     SchedulerLeaseRequest,
@@ -77,12 +78,15 @@ function createService(acquired: boolean, shuttingDown = false) {
             ),
             validateTriggerAllowedOrThrow: jest.fn(),
             resolveCompletedStatus: jest.fn(() => SchedulerRunStatus.Completed),
+            classifyItemFailure: jest.fn(),
             resolveSafeRunFailure: jest.fn(() => ({
                 code: 'SCHEDULER_RUN_FAILED',
                 message: 'Billing run failed unexpectedly',
             })),
+            resolveInterruptedItemFailure: jest.fn(),
+            resolveRetryAt: jest.fn(),
             validateManualRunOrThrow: jest.fn(),
-        },
+        } as unknown as BillingSchedulerAction,
         {
             acquireLease,
             claimDueBatch: jest.fn().mockResolvedValue([]),
@@ -98,7 +102,11 @@ function createService(acquired: boolean, shuttingDown = false) {
         } as unknown as BillingSchedulerHeartbeat,
         { generateClaimed: jest.fn() } as unknown as InvoicesService,
         {} as CursorCodec,
-        { info, error: jest.fn() } as unknown as AppLogger,
+        {
+            info,
+            warn: jest.fn(),
+            error: jest.fn(),
+        } as unknown as AppLogger,
     );
 
     return {

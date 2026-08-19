@@ -15,6 +15,7 @@ import type {
 export type SchedulerLeaseRecord = Selectable<SchedulerLocksTable>;
 export type SchedulerRunRecord = Selectable<SchedulerRunsTable>;
 export type SchedulerRunItemRecord = Selectable<SchedulerRunItemsTable>;
+export type SchedulerRunItemInsert = Insertable<SchedulerRunItemsTable>;
 export type SchedulerRunInsert = Insertable<SchedulerRunsTable>;
 export type DueSubscriptionRecord = Selectable<SubscriptionsTable>;
 
@@ -42,6 +43,27 @@ export interface SchedulerHeartbeatContext {
     lockName: string;
     ownerToken: string;
     runId?: string;
+}
+
+export type BillingItemFailureType =
+    'transient' | 'permanent' | 'lease_lost' | 'shutdown_interrupted';
+
+export interface BillingItemFailure {
+    type: BillingItemFailureType;
+    code: string;
+    message: string;
+    failureCount: number;
+    retryAt: Date | null;
+}
+
+export interface SchedulerItemFailurePersistence {
+    subscriptionId: string;
+    runId: string;
+    owner: string;
+    beforeBillingDate: string;
+    startedAt: Date;
+    completedAt: Date;
+    failure: BillingItemFailure;
 }
 
 export interface SchedulerRunCounters {

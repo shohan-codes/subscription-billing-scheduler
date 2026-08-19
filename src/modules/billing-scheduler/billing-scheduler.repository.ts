@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
 import { DATABASE, type DatabaseClient } from '../../database/database.module';
@@ -12,6 +13,8 @@ import type {
     SchedulerLeaseRequest,
     SchedulerRunFinalization,
     SchedulerRunInsert,
+    SchedulerItemFailurePersistence,
+    SchedulerRunItemInsert,
     SchedulerRunItemListQuery,
     SchedulerRunItemRecord,
     SchedulerRunListQuery,
@@ -212,6 +215,75 @@ export class BillingSchedulerRepository {
                 return subscription ? [subscription] : [];
             });
         });
+    }
+
+    /** Persists an item failure and clears the claim or returns undefined after ownership loss. */
+    recordItemFailure(
+        request: SchedulerItemFailurePersistence,
+    ): Promise<SchedulerRunItemRecord | undefined> {
+        return this.database.transaction().execute(async (transaction) => {
+            if (
+                request.failure.type !== 'transient' &&
+                request.failure.type !== 'permanent'
+            ) {
+                return undefined;
+            }
+
+            const subscription = await transaction
+                .updateTable('subscriptions')
+                .set({
+                    billing_state:
+                        request.failure.type === 'transient'
+                            ? 'retry_wait'
+                            : 'blocked',
+                    billing_failure_count: request.failure.failureCount,
+                    billing_retry_at: request.failure.retryAt,
+                    last_billing_error_code: request.failure.code,
+                    last_billing_error_message: request.failure.message,
+                    processing_run_id: null,
+                    processing_owner: null,
+                    processing_started_at: null,
+                    processing_expires_at: null,
+                    version: sql<number>`version + 1`,
+                })
+                .where('id', '=', request.subscriptionId)
+                .where('processing_run_id', '=', request.runId)
+                .where('processing_owner', '=', request.owner)
+                .returning('next_billing_date')
+                .executeTakeFirst();
+
+            if (!subscription) return undefined;
+
+            return transaction
+                .insertInto('scheduler_run_items')
+                .values({
+                    id: randomUUID(),
+                    run_id: request.runId,
+                    subscription_id: request.subscriptionId,
+                    result: 'failed',
+                    before_billing_date: request.beforeBillingDate,
+                    after_billing_date: subscription.next_billing_date,
+                    invoices_created: 0,
+                    error_type: request.failure.type,
+                    error_code: request.failure.code,
+                    error_message: request.failure.message,
+                    started_at: request.startedAt,
+                    completed_at: request.completedAt,
+                })
+                .returningAll()
+                .executeTakeFirstOrThrow();
+        });
+    }
+
+    /** Persists an item outcome that intentionally does not mutate subscription ownership. */
+    createRunItemOrThrow(
+        item: SchedulerRunItemInsert,
+    ): Promise<SchedulerRunItemRecord> {
+        return this.database
+            .insertInto('scheduler_run_items')
+            .values(item)
+            .returningAll()
+            .executeTakeFirstOrThrow();
     }
 
     /** Finalizes a running scheduler record or throws when ownership changed. */
