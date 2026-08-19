@@ -1,13 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
+import { $database } from '../../database/database.constant';
 import {
     InvoicePeriodConflictException,
     SubscriptionClaimLostException,
     SubscriptionNotBillableException,
 } from '../invoices/invoices.errors';
+import { $invoice } from '../invoices/invoices.constant';
 import {
-    BILLING_SCHEDULER_JOB_NAME,
-    SchedulerRunStatus,
+    $billingScheduler,
+    type SchedulerRunStatus,
 } from './billing-scheduler.constant';
 import {
     SchedulerLeaseUnavailableException,
@@ -30,7 +32,7 @@ export class BillingSchedulerAction {
         leaseSeconds: number,
     ): SchedulerLeaseRequest {
         return {
-            lockName: BILLING_SCHEDULER_JOB_NAME,
+            lockName: $billingScheduler.job.NAME,
             ownerToken: `${instanceId}:${randomUUID()}`,
             acquiredAt: now,
             leaseExpiresAt: new Date(now.getTime() + leaseSeconds * 1000),
@@ -40,7 +42,10 @@ export class BillingSchedulerAction {
     /** Builds a bounded claim owner token for one scheduler run. */
     createClaimOwner(instanceId: string): string {
         const token = randomUUID();
-        const maxInstanceLength = 120 - token.length - 1;
+        const maxInstanceLength =
+            $database.subscription.processingOwner.MAX_LENGTH -
+            token.length -
+            1;
         return `${instanceId.slice(0, maxInstanceLength)}:${token}`;
     }
 
@@ -57,8 +62,8 @@ export class BillingSchedulerAction {
     ): BillingItemFailure {
         if (error instanceof SubscriptionClaimLostException) {
             return {
-                type: 'lease_lost',
-                code: 'SUBSCRIPTION_CLAIM_LOST',
+                type: $billingScheduler.failureType.LEASE_LOST,
+                code: $invoice.errorCode.SUBSCRIPTION_CLAIM_LOST,
                 message: 'Subscription processing ownership was lost',
                 failureCount: currentFailureCount,
                 retryAt: null,
@@ -66,14 +71,14 @@ export class BillingSchedulerAction {
         }
         if (error instanceof InvoicePeriodConflictException) {
             return this.permanentFailure(
-                'INVOICE_PERIOD_CONFLICT',
+                $invoice.errorCode.PERIOD_CONFLICT,
                 'Existing invoice conflicts with the expected billing period',
                 currentFailureCount,
             );
         }
         if (error instanceof SubscriptionNotBillableException) {
             return this.permanentFailure(
-                'SUBSCRIPTION_NOT_BILLABLE',
+                $invoice.errorCode.SUBSCRIPTION_NOT_BILLABLE,
                 'Subscription is no longer billable for this run',
                 currentFailureCount,
             );
@@ -81,8 +86,8 @@ export class BillingSchedulerAction {
         if (isTransientDatabaseError(error)) {
             const failureCount = currentFailureCount + 1;
             return {
-                type: 'transient',
-                code: 'DATABASE_TRANSIENT_FAILURE',
+                type: $billingScheduler.failureType.TRANSIENT,
+                code: $billingScheduler.errorCode.DATABASE_TRANSIENT_FAILURE,
                 message:
                     'A temporary database error interrupted subscription billing',
                 failureCount,
@@ -91,7 +96,7 @@ export class BillingSchedulerAction {
         }
 
         return this.permanentFailure(
-            'BILLING_ITEM_FAILED',
+            $billingScheduler.errorCode.BILLING_ITEM_FAILED,
             'Subscription billing failed because of an unrecoverable item error',
             currentFailureCount,
         );
@@ -104,15 +109,15 @@ export class BillingSchedulerAction {
     ): BillingItemFailure {
         return leaseLost
             ? {
-                  type: 'lease_lost',
-                  code: 'SCHEDULER_LEASE_LOST',
+                  type: $billingScheduler.failureType.LEASE_LOST,
+                  code: $billingScheduler.errorCode.LEASE_LOST,
                   message: 'Scheduler lease ownership was lost',
                   failureCount: currentFailureCount,
                   retryAt: null,
               }
             : {
-                  type: 'shutdown_interrupted',
-                  code: 'SHUTDOWN_INTERRUPTED',
+                  type: $billingScheduler.failureType.SHUTDOWN_INTERRUPTED,
+                  code: $billingScheduler.errorCode.SHUTDOWN_INTERRUPTED,
                   message:
                       'Application shutdown interrupted subscription billing',
                   failureCount: currentFailureCount,
@@ -122,12 +127,14 @@ export class BillingSchedulerAction {
 
     /** Calculates the capped retry timestamp for the consecutive transient failure count. */
     resolveRetryAt(now: Date, failureCount: number): Date {
-        const delays = [60, 300, 900, 3600, 21_600] as const;
         const index = Math.min(
             Math.max(failureCount - 1, 0),
-            delays.length - 1,
+            $billingScheduler.retry.DELAYS_SECONDS.length - 1,
         );
-        return new Date(now.getTime() + delays[index] * 1000);
+        return new Date(
+            now.getTime() +
+                $billingScheduler.retry.DELAYS_SECONDS[index] * 1000,
+        );
     }
 
     /** Builds persisted metadata for a permanent billing failure. */
@@ -137,7 +144,7 @@ export class BillingSchedulerAction {
         failureCount: number,
     ): BillingItemFailure {
         return {
-            type: 'permanent',
+            type: $billingScheduler.failureType.PERMANENT,
             code,
             message,
             failureCount,
@@ -175,7 +182,9 @@ export class BillingSchedulerAction {
 
     /** Rejects a manual trigger when another coordinator already owns the lease. */
     validateManualRunOrThrow(run: SchedulerRunRecord): void {
-        if (run.status === SchedulerRunStatus.SkippedLockUnavailable) {
+        if (
+            run.status === $billingScheduler.runStatus.SKIPPED_LOCK_UNAVAILABLE
+        ) {
             throw new SchedulerLeaseUnavailableException();
         }
     }
@@ -183,15 +192,15 @@ export class BillingSchedulerAction {
     /** Resolves the terminal success status from accumulated run counters. */
     resolveCompletedStatus(counters: SchedulerRunCounters): SchedulerRunStatus {
         return counters.failedCount > 0
-            ? SchedulerRunStatus.CompletedWithErrors
-            : SchedulerRunStatus.Completed;
+            ? $billingScheduler.runStatus.COMPLETED_WITH_ERRORS
+            : $billingScheduler.runStatus.COMPLETED;
     }
 
     /** Builds a safe top-level failure summary without exposing internal error details. */
     resolveSafeRunFailure(error: unknown): SchedulerRunFailure {
         void error;
         return {
-            code: 'SCHEDULER_RUN_FAILED',
+            code: $billingScheduler.errorCode.RUN_FAILED,
             message: 'Billing run failed unexpectedly',
         };
     }
@@ -203,18 +212,7 @@ function isTransientDatabaseError(error: unknown): boolean {
     const code = (error as { code?: unknown }).code;
     if (typeof code !== 'string') return false;
 
-    return new Set([
-        '40001',
-        '40P01',
-        '55P03',
-        '08000',
-        '08001',
-        '08003',
-        '08006',
-        '08007',
-        '08P01',
-        '57P01',
-        '57P02',
-        '57P03',
-    ]).has(code);
+    return Object.values($database.postgres.transientErrorCode).some(
+        (transientCode) => transientCode === code,
+    );
 }

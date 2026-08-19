@@ -6,13 +6,13 @@ import { Clock } from '../../common/clock';
 import { ShutdownState } from '../../common/shutdown-state';
 import { CursorCodec } from '../../common/utils/cursor-codec';
 import { AppConfigService } from '../../config/app-config.service';
+import { $invoice } from '../invoices/invoices.constant';
 import { InvoicesService } from '../invoices/invoices.service';
 import { BillingSchedulerAction } from './billing-scheduler.action';
 import {
-    BILLING_SCHEDULER_JOB_NAME,
-    SchedulerProcessingStopReason,
-    SchedulerRunStatus,
-    SchedulerTriggerType,
+    $billingScheduler,
+    type SchedulerProcessingStopReason,
+    type SchedulerTriggerType,
 } from './billing-scheduler.constant';
 import {
     GetBillingRunRequest,
@@ -60,15 +60,19 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
     /** Starts the scheduler coordinator path for a scheduled trigger. */
     async triggerScheduled(): Promise<void> {
         if (this.shutdownState.isShuttingDown) {
-            this.logger.info('billing.trigger.skipped_shutdown');
+            this.logger.info(
+                $billingScheduler.logEvent.TRIGGER_SKIPPED_SHUTDOWN,
+            );
             return;
         }
 
         try {
-            await this.track(this.coordinate(SchedulerTriggerType.Scheduled));
+            await this.track(
+                this.coordinate($billingScheduler.triggerType.SCHEDULED),
+            );
         } catch {
-            this.logger.error('billing.trigger.failed', {
-                errorCode: 'SCHEDULER_TRIGGER_FAILED',
+            this.logger.error($billingScheduler.logEvent.TRIGGER_FAILED, {
+                errorCode: $billingScheduler.errorCode.TRIGGER_FAILED,
             });
         }
     }
@@ -79,7 +83,7 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
             this.shutdownState.isShuttingDown,
         );
         const run = await this.track(
-            this.coordinate(SchedulerTriggerType.Manual),
+            this.coordinate($billingScheduler.triggerType.MANUAL),
         );
         this.action.validateManualRunOrThrow(run);
 
@@ -187,7 +191,7 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
         const timedOut = new Promise<boolean>((resolve) => {
             timeout = setTimeout(
                 () => resolve(true),
-                this.config.billing.maxRunSeconds * 1000,
+                this.config.billing.MAX_RUN_SECONDS * 1000,
             );
         });
         const completed = Promise.allSettled([...this.inFlight]).then(
@@ -197,7 +201,7 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
         if (timeout) clearTimeout(timeout);
 
         if (didTimeOut) {
-            this.logger.warn('billing.shutdown.timeout', {
+            this.logger.warn($billingScheduler.logEvent.SHUTDOWN_TIMEOUT, {
                 inFlightCount: this.inFlight.size,
             });
         }
@@ -213,10 +217,11 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
 
         while (true) {
             if (this.heartbeat.isLeaseLost) {
-                return SchedulerProcessingStopReason.LeaseLost;
+                return $billingScheduler.processingStopReason.LEASE_LOST;
             }
             if (this.shutdownState.isShuttingDown) {
-                return SchedulerProcessingStopReason.ShutdownInterrupted;
+                return $billingScheduler.processingStopReason
+                    .SHUTDOWN_INTERRUPTED;
             }
 
             const now = this.clock.now();
@@ -224,18 +229,18 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                 this.action.isRunDurationLimitReached(
                     startedAt,
                     now,
-                    this.config.billing.maxRunSeconds,
+                    this.config.billing.MAX_RUN_SECONDS,
                 )
             ) {
-                return SchedulerProcessingStopReason.RunLimitReached;
+                return $billingScheduler.processingStopReason.RUN_LIMIT_REACHED;
             }
             const batchLimit = this.action.resolveClaimBatchLimit(
-                this.config.billing.batchSize,
+                this.config.billing.BATCH_SIZE,
                 counters.claimedCount,
-                this.config.billing.maxItemsPerRun,
+                this.config.billing.MAX_ITEMS_PER_RUN,
             );
             if (batchLimit === 0) {
-                return SchedulerProcessingStopReason.RunLimitReached;
+                return $billingScheduler.processingStopReason.RUN_LIMIT_REACHED;
             }
 
             const batch = await this.repository.claimDueBatch({
@@ -247,12 +252,12 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                 claimStartedAt: now,
                 claimExpiresAt: this.action.createClaimExpiry(
                     now,
-                    this.config.billing.claimSeconds,
+                    this.config.billing.CLAIM_SECONDS,
                 ),
             });
 
             if (batch.length === 0) {
-                return SchedulerProcessingStopReason.Exhausted;
+                return $billingScheduler.processingStopReason.EXHAUSTED;
             }
 
             counters.eligibleCount += batch.length;
@@ -260,10 +265,11 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
 
             for (const subscription of batch) {
                 if (this.heartbeat.isLeaseLost) {
-                    return SchedulerProcessingStopReason.LeaseLost;
+                    return $billingScheduler.processingStopReason.LEASE_LOST;
                 }
                 if (this.shutdownState.isShuttingDown) {
-                    return SchedulerProcessingStopReason.ShutdownInterrupted;
+                    return $billingScheduler.processingStopReason
+                        .SHUTDOWN_INTERRUPTED;
                 }
 
                 const itemStartedAt = this.clock.now();
@@ -271,10 +277,11 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                     this.action.isRunDurationLimitReached(
                         startedAt,
                         itemStartedAt,
-                        this.config.billing.maxRunSeconds,
+                        this.config.billing.MAX_RUN_SECONDS,
                     )
                 ) {
-                    return SchedulerProcessingStopReason.RunLimitReached;
+                    return $billingScheduler.processingStopReason
+                        .RUN_LIMIT_REACHED;
                 }
 
                 try {
@@ -283,7 +290,7 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                         runId: run.id,
                         owner: claimOwner,
                         cutoffDate: run.cutoff_date,
-                        maxPeriods: this.config.billing.maxCatchUpPeriods,
+                        maxPeriods: this.config.billing.MAX_CATCH_UP_PERIODS,
                     });
                     counters.succeededCount += 1;
                     counters.invoicesCreatedCount += result.invoicesCreated;
@@ -296,14 +303,16 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                     );
 
                     if (
-                        failure.type === 'lease_lost' ||
-                        failure.type === 'shutdown_interrupted'
+                        failure.type ===
+                            $billingScheduler.failureType.LEASE_LOST ||
+                        failure.type ===
+                            $billingScheduler.failureType.SHUTDOWN_INTERRUPTED
                     ) {
                         await this.repository.createRunItemOrThrow({
                             id: randomUUID(),
                             run_id: run.id,
                             subscription_id: subscription.id,
-                            result: 'skipped',
+                            result: $billingScheduler.runItemResult.SKIPPED,
                             before_billing_date: subscription.next_billing_date,
                             after_billing_date: null,
                             invoices_created: 0,
@@ -314,11 +323,14 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                             completed_at: completedAt,
                         });
                         counters.skippedCount += 1;
-                        this.logger.warn('billing.item.skipped', {
-                            runId: run.id,
-                            subscriptionId: subscription.id,
-                            errorCode: failure.code,
-                        });
+                        this.logger.warn(
+                            $billingScheduler.logEvent.ITEM_SKIPPED,
+                            {
+                                runId: run.id,
+                                subscriptionId: subscription.id,
+                                errorCode: failure.code,
+                            },
+                        );
                         continue;
                     }
 
@@ -334,18 +346,25 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
 
                     if (recorded) {
                         counters.failedCount += 1;
-                        this.logger.warn('billing.item.failed', {
-                            runId: run.id,
-                            subscriptionId: subscription.id,
-                            errorCode: failure.code,
-                        });
+                        this.logger.warn(
+                            $billingScheduler.logEvent.ITEM_FAILED,
+                            {
+                                runId: run.id,
+                                subscriptionId: subscription.id,
+                                errorCode: failure.code,
+                            },
+                        );
                     } else {
                         counters.skippedCount += 1;
-                        this.logger.warn('billing.item.claim_lost', {
-                            runId: run.id,
-                            subscriptionId: subscription.id,
-                            errorCode: 'SUBSCRIPTION_CLAIM_LOST',
-                        });
+                        this.logger.warn(
+                            $billingScheduler.logEvent.ITEM_CLAIM_LOST,
+                            {
+                                runId: run.id,
+                                subscriptionId: subscription.id,
+                                errorCode:
+                                    $invoice.errorCode.SUBSCRIPTION_CLAIM_LOST,
+                            },
+                        );
                     }
                 }
             }
@@ -361,13 +380,13 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
         );
         const triggeredAt = this.clock.now();
         const cutoffDate = this.clock.dateInTimeZone(
-            this.config.billing.timezone,
+            this.config.billing.TIMEZONE,
             triggeredAt,
         );
         const leaseRequest = this.action.createLeaseRequest(
             triggeredAt,
-            this.config.app.instanceId,
-            this.config.billing.leaseSeconds,
+            this.config.app.INSTANCE_ID,
+            this.config.billing.LEASE_SECONDS,
         );
         const lease = await this.repository.acquireLease(leaseRequest);
 
@@ -375,12 +394,12 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
             const completedAt = this.clock.now();
             const skipped = await this.repository.createRunOrThrow({
                 id: randomUUID(),
-                job_name: BILLING_SCHEDULER_JOB_NAME,
+                job_name: $billingScheduler.job.NAME,
                 trigger_type: triggerType,
                 triggered_at: triggeredAt,
                 cutoff_date: cutoffDate,
-                status: SchedulerRunStatus.SkippedLockUnavailable,
-                instance_id: this.config.app.instanceId,
+                status: $billingScheduler.runStatus.SKIPPED_LOCK_UNAVAILABLE,
+                instance_id: this.config.app.INSTANCE_ID,
                 lease_owner_token: null,
                 started_at: null,
                 completed_at: completedAt,
@@ -391,31 +410,34 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                 failed_count: 0,
                 skipped_count: 0,
                 invoices_created_count: 0,
-                error_code: 'SCHEDULER_LEASE_UNAVAILABLE',
+                error_code: $billingScheduler.errorCode.LEASE_UNAVAILABLE,
                 error_message:
                     'Another coordinator owns the active scheduler lease',
             });
-            this.logger.info('billing.run.skipped', {
+            this.logger.info($billingScheduler.logEvent.RUN_SKIPPED, {
                 runId: skipped.id,
                 jobName: leaseRequest.lockName,
-                result: SchedulerRunStatus.SkippedLockUnavailable,
+                result: $billingScheduler.runStatus.SKIPPED_LOCK_UNAVAILABLE,
             });
             return skipped;
         }
 
         const staleBefore = this.action.createStaleRunThreshold(
             triggeredAt,
-            this.config.billing.leaseSeconds,
+            this.config.billing.LEASE_SECONDS,
         );
         const abandoned = await this.repository.abandonStaleRuns(
-            BILLING_SCHEDULER_JOB_NAME,
+            $billingScheduler.job.NAME,
             staleBefore,
             triggeredAt,
         );
         if (abandoned.length > 0) {
-            this.logger.warn('billing.run.abandoned_recovered', {
-                abandonedCount: abandoned.length,
-            });
+            this.logger.warn(
+                $billingScheduler.logEvent.RUN_ABANDONED_RECOVERED,
+                {
+                    abandonedCount: abandoned.length,
+                },
+            );
         }
 
         let run: SchedulerRunRecord | undefined;
@@ -424,12 +446,12 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
         try {
             run = await this.repository.createRunOrThrow({
                 id: randomUUID(),
-                job_name: BILLING_SCHEDULER_JOB_NAME,
+                job_name: $billingScheduler.job.NAME,
                 trigger_type: triggerType,
                 triggered_at: triggeredAt,
                 cutoff_date: cutoffDate,
-                status: SchedulerRunStatus.Running,
-                instance_id: this.config.app.instanceId,
+                status: $billingScheduler.runStatus.RUNNING,
+                instance_id: this.config.app.INSTANCE_ID,
                 lease_owner_token: lease.owner_token,
                 started_at: triggeredAt,
                 completed_at: null,
@@ -448,12 +470,12 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                 ownerToken: lease.owner_token,
                 runId: run.id,
             });
-            this.logger.info('billing.run.started', {
+            this.logger.info($billingScheduler.logEvent.RUN_STARTED, {
                 runId: run.id,
                 triggerType,
             });
             const claimOwner = this.action.createClaimOwner(
-                this.config.app.instanceId,
+                this.config.app.INSTANCE_ID,
             );
             const stopReason = await this.processClaimedBatches(
                 run,
@@ -461,28 +483,34 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                 counters,
             );
 
-            if (stopReason !== SchedulerProcessingStopReason.Exhausted) {
+            if (
+                stopReason !== $billingScheduler.processingStopReason.EXHAUSTED
+            ) {
                 return this.repository.finalizeRunOrThrow(
                     run.id,
                     lease.owner_token,
                     {
-                        status: SchedulerRunStatus.Interrupted,
+                        status: $billingScheduler.runStatus.INTERRUPTED,
                         completedAt: this.clock.now(),
                         counters,
                         errorCode:
                             stopReason ===
-                            SchedulerProcessingStopReason.LeaseLost
-                                ? 'SCHEDULER_LEASE_LOST'
+                            $billingScheduler.processingStopReason.LEASE_LOST
+                                ? $billingScheduler.errorCode.LEASE_LOST
                                 : stopReason ===
-                                    SchedulerProcessingStopReason.RunLimitReached
-                                  ? 'RUN_LIMIT_REACHED'
-                                  : 'SHUTDOWN_INTERRUPTED',
+                                    $billingScheduler.processingStopReason
+                                        .RUN_LIMIT_REACHED
+                                  ? $billingScheduler.errorCode
+                                        .RUN_LIMIT_REACHED
+                                  : $billingScheduler.errorCode
+                                        .SHUTDOWN_INTERRUPTED,
                         errorMessage:
                             stopReason ===
-                            SchedulerProcessingStopReason.LeaseLost
+                            $billingScheduler.processingStopReason.LEASE_LOST
                                 ? 'Scheduler lease ownership was lost'
                                 : stopReason ===
-                                    SchedulerProcessingStopReason.RunLimitReached
+                                    $billingScheduler.processingStopReason
+                                        .RUN_LIMIT_REACHED
                                   ? 'Billing run stopped at a configured safety limit'
                                   : 'Billing run was interrupted by application shutdown',
                     },
@@ -506,14 +534,14 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                 run.id,
                 lease.owner_token,
                 {
-                    status: SchedulerRunStatus.Failed,
+                    status: $billingScheduler.runStatus.FAILED,
                     completedAt: this.clock.now(),
                     counters,
                     errorCode: failure.code,
                     errorMessage: failure.message,
                 },
             );
-            this.logger.error('billing.run.failed', {
+            this.logger.error($billingScheduler.logEvent.RUN_FAILED, {
                 runId: run.id,
                 errorCode: failure.code,
             });
@@ -526,7 +554,7 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                 lease.lock_name,
                 lease.owner_token,
             );
-            this.logger.info('billing.lease.released', {
+            this.logger.info($billingScheduler.logEvent.LEASE_RELEASED, {
                 ...(run ? { runId: run.id } : {}),
                 jobName: lease.lock_name,
                 released,

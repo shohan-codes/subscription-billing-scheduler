@@ -1,7 +1,7 @@
 import type { SchedulerRegistry } from '@nestjs/schedule';
 import type { AppLogger } from '../../../common/app-logger';
 import type { AppConfigService } from '../../../config/app-config.service';
-import { BILLING_SCHEDULER_JOB_NAME } from '../billing-scheduler.constant';
+import { $billingScheduler } from '../billing-scheduler.constant';
 import { BillingSchedulerCron } from '../billing-scheduler.cron';
 import type { BillingSchedulerService } from '../billing-scheduler.service';
 
@@ -14,9 +14,9 @@ interface CronJobMock {
 function config(enabled: boolean): AppConfigService {
     return {
         billing: {
-            cronEnabled: enabled,
-            cronExpression: '5 0 * * *',
-            timezone: 'UTC',
+            CRON_ENABLED: enabled,
+            CRON_EXPRESSION: '5 0 * * *',
+            TIMEZONE: 'UTC',
         },
     } as unknown as AppConfigService;
 }
@@ -52,7 +52,7 @@ describe('BillingSchedulerCron', () => {
 
         expect(addCronJob).toHaveBeenCalledTimes(1);
         expect(addCronJob).toHaveBeenCalledWith(
-            BILLING_SCHEDULER_JOB_NAME,
+            $billingScheduler.job.NAME,
             expect.any(Object),
         );
         const call = addCronJob.mock.calls[0] as

@@ -10,7 +10,7 @@ describe('AppLogger', () => {
             .spyOn(Logger.prototype, 'log')
             .mockImplementation(() => undefined);
         const logger = new AppLogger(
-            { app: { instanceId: 'instance-1' } } as AppConfigService,
+            { app: { INSTANCE_ID: 'instance-1' } } as AppConfigService,
             {
                 now: () => new Date('2026-08-17T04:00:00.000Z'),
             } as Clock,

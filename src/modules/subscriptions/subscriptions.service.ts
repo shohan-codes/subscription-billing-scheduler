@@ -3,7 +3,7 @@ import { isUUID } from 'class-validator';
 import { Clock } from '../../common/clock';
 import { CursorCodec } from '../../common/utils/cursor-codec';
 import { SubscriptionsAction } from './subscriptions.action';
-import { SUBSCRIPTION_DATE_PATTERN } from './subscriptions.constant';
+import { $subscription } from './subscriptions.constant';
 import {
     BillingRetrySubscriptionRequest,
     BillingRetrySubscriptionResponse,
@@ -174,7 +174,7 @@ function isSubscriptionListCursor(
 ): payload is SubscriptionListCursor {
     return (
         typeof payload.nextBillingDate === 'string' &&
-        SUBSCRIPTION_DATE_PATTERN.test(payload.nextBillingDate) &&
+        $subscription.pattern.DATE.test(payload.nextBillingDate) &&
         typeof payload.id === 'string' &&
         isUUID(payload.id) &&
         Object.keys(payload).length === 2

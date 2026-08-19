@@ -1,12 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import {
-    SubscriptionBillingState,
-    SubscriptionStatus,
-} from '../subscriptions/subscriptions.constant';
+import { $subscription } from '../subscriptions/subscriptions.constant';
 import { SubscriptionsAction } from '../subscriptions/subscriptions.action';
 import type { SubscriptionRecord } from '../subscriptions/subscriptions.types';
-import { InvoiceStatus } from './invoices.constant';
+import { $invoice } from './invoices.constant';
 import {
     InvoicePeriodConflictException,
     SubscriptionClaimLostException,
@@ -37,18 +34,19 @@ export class InvoicesAction {
         ) {
             throw new SubscriptionClaimLostException();
         }
-        if (subscription.status !== SubscriptionStatus.Active) {
+        if (subscription.status !== $subscription.status.ACTIVE) {
             throw new SubscriptionNotBillableException(
                 'Subscription is not active',
             );
         }
-        if (subscription.billing_state === SubscriptionBillingState.Blocked) {
+        if (subscription.billing_state === $subscription.billingState.BLOCKED) {
             throw new SubscriptionNotBillableException(
                 'Blocked subscription cannot be billed automatically',
             );
         }
         if (
-            subscription.billing_state === SubscriptionBillingState.RetryWait &&
+            subscription.billing_state ===
+                $subscription.billingState.RETRY_WAIT &&
             subscription.billing_retry_at &&
             subscription.billing_retry_at.getTime() > now.getTime()
         ) {
@@ -125,7 +123,7 @@ export class InvoicesAction {
                 billing_period_start: subscription.next_billing_date,
                 billing_period_end: nextBillingDate,
                 issue_date: request.cutoffDate,
-                status: InvoiceStatus.Issued,
+                status: $invoice.status.ISSUED,
                 currency: subscription.currency,
                 subtotal: subscription.amount,
                 tax_total: '0.0000',

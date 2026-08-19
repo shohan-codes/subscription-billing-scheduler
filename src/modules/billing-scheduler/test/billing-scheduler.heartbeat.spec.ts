@@ -1,11 +1,12 @@
 import type { AppLogger } from '../../../common/app-logger';
 import type { Clock } from '../../../common/clock';
 import type { AppConfigService } from '../../../config/app-config.service';
+import { $billingScheduler } from '../billing-scheduler.constant';
 import { BillingSchedulerHeartbeat } from '../billing-scheduler.heartbeat';
 import type { BillingSchedulerRepository } from '../billing-scheduler.repository';
 
 const context = {
-    lockName: 'billing.invoice.scheduler',
+    lockName: $billingScheduler.job.NAME,
     ownerToken: 'instance-a:owner-a',
     runId: '8ad3be99-71fc-463f-bf74-76b0bd09643f',
 };
@@ -21,7 +22,7 @@ function createHeartbeat(renewed: boolean) {
     const warn = jest.fn();
     const heartbeat = new BillingSchedulerHeartbeat(
         {
-            billing: { heartbeatSeconds: 30, leaseSeconds: 120 },
+            billing: { HEARTBEAT_SECONDS: 30, LEASE_SECONDS: 120 },
         } as unknown as AppConfigService,
         {
             now: jest.fn(() => new Date('2026-08-18T10:00:30.000Z')),
@@ -62,11 +63,14 @@ describe('BillingSchedulerHeartbeat', () => {
 
         await expect(heartbeat.renewNow(context)).resolves.toBe(false);
         expect(heartbeat.isLeaseLost).toBe(true);
-        expect(warn).toHaveBeenCalledWith('billing.lease.heartbeat_failed', {
-            jobName: context.lockName,
-            runId: context.runId,
-            errorCode: 'SCHEDULER_LEASE_LOST',
-        });
+        expect(warn).toHaveBeenCalledWith(
+            $billingScheduler.logEvent.LEASE_HEARTBEAT_FAILED,
+            {
+                jobName: context.lockName,
+                runId: context.runId,
+                errorCode: $billingScheduler.errorCode.LEASE_LOST,
+            },
+        );
     });
 
     it('marks ownership lost and stops continuation after renewal failure', async () => {
@@ -75,10 +79,13 @@ describe('BillingSchedulerHeartbeat', () => {
         await expect(heartbeat.renewNow(context)).resolves.toBe(false);
         expect(updateRunHeartbeat).not.toHaveBeenCalled();
         expect(heartbeat.isLeaseLost).toBe(true);
-        expect(warn).toHaveBeenCalledWith('billing.lease.lost', {
-            jobName: context.lockName,
-            runId: context.runId,
-            errorCode: 'SCHEDULER_LEASE_LOST',
-        });
+        expect(warn).toHaveBeenCalledWith(
+            $billingScheduler.logEvent.LEASE_LOST,
+            {
+                jobName: context.lockName,
+                runId: context.runId,
+                errorCode: $billingScheduler.errorCode.LEASE_LOST,
+            },
+        );
     });
 });

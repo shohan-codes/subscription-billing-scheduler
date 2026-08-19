@@ -21,12 +21,11 @@ import {
 } from '../../common/dto/cursor-pagination.dto';
 import { ResponseDto } from '../../common/dto/response.dto';
 import {
-    SUBSCRIPTION_AMOUNT_PATTERN,
-    SUBSCRIPTION_CURRENCY_PATTERN,
-    SUBSCRIPTION_DATE_PATTERN,
-    SubscriptionBillingState,
-    SubscriptionStatus,
+    $subscription,
+    type SubscriptionBillingState,
+    type SubscriptionStatus,
 } from './subscriptions.constant';
+import { $invoice, type InvoiceStatus } from '../invoices/invoices.constant';
 import type { InvoiceRecord } from '../invoices/invoices.types';
 import type {
     SubscriptionListResult,
@@ -61,15 +60,15 @@ class SubscriptionResponse<
     description!: string;
 
     @SubscriptionResponseField({
-        example: SubscriptionStatus.Active,
-        enum: Object.values(SubscriptionStatus),
+        example: $subscription.status.ACTIVE,
+        enum: Object.values($subscription.status),
         enumName: 'SubscriptionStatus',
     })
     status!: SubscriptionStatus;
 
     @SubscriptionResponseField({
-        example: SubscriptionBillingState.Ready,
-        enum: Object.values(SubscriptionBillingState),
+        example: $subscription.billingState.READY,
+        enum: Object.values($subscription.billingState),
         enumName: 'SubscriptionBillingState',
         transform: (source) => source.billing_state,
     })
@@ -190,8 +189,8 @@ export class LatestInvoiceSummaryResponse extends ResponseDto<InvoiceRecord> {
     })
     issueDate!: string;
 
-    @LatestInvoiceResponseField({ example: 'issued' })
-    status!: 'issued';
+    @LatestInvoiceResponseField({ example: $invoice.status.ISSUED })
+    status!: InvoiceStatus;
 
     @LatestInvoiceResponseField({ example: 'USD' })
     currency!: string;
@@ -217,10 +216,10 @@ export class CreateSubscriptionRequest {
 
     @ApiProperty({
         example: '49.0000',
-        pattern: SUBSCRIPTION_AMOUNT_PATTERN.source,
+        pattern: $subscription.pattern.AMOUNT.source,
     })
     @IsString()
-    @Matches(SUBSCRIPTION_AMOUNT_PATTERN, {
+    @Matches($subscription.pattern.AMOUNT, {
         message:
             'amount must be greater than zero with up to 15 integer and 4 fractional digits',
     })
@@ -230,10 +229,10 @@ export class CreateSubscriptionRequest {
         example: 'USD',
         minLength: 3,
         maxLength: 3,
-        pattern: SUBSCRIPTION_CURRENCY_PATTERN.source,
+        pattern: $subscription.pattern.CURRENCY.source,
     })
     @IsString()
-    @Matches(SUBSCRIPTION_CURRENCY_PATTERN, {
+    @Matches($subscription.pattern.CURRENCY, {
         message: 'currency must be a three-letter uppercase code',
     })
     currency!: string;
@@ -241,10 +240,10 @@ export class CreateSubscriptionRequest {
     @ApiProperty({
         example: '2026-08-16',
         format: 'date',
-        pattern: SUBSCRIPTION_DATE_PATTERN.source,
+        pattern: $subscription.pattern.DATE.source,
     })
     @IsString()
-    @Matches(SUBSCRIPTION_DATE_PATTERN, {
+    @Matches($subscription.pattern.DATE, {
         message: 'startDate must use YYYY-MM-DD format',
     })
     @IsISO8601({ strict: true })
@@ -253,10 +252,10 @@ export class CreateSubscriptionRequest {
     @ApiProperty({
         example: '2026-08-31',
         format: 'date',
-        pattern: SUBSCRIPTION_DATE_PATTERN.source,
+        pattern: $subscription.pattern.DATE.source,
     })
     @IsString()
-    @Matches(SUBSCRIPTION_DATE_PATTERN, {
+    @Matches($subscription.pattern.DATE, {
         message: 'firstBillingDate must use YYYY-MM-DD format',
     })
     @IsISO8601({ strict: true })
@@ -287,11 +286,11 @@ export class UpdateSubscriptionRequest {
 
     @ApiPropertyOptional({
         example: '99.0000',
-        pattern: SUBSCRIPTION_AMOUNT_PATTERN.source,
+        pattern: $subscription.pattern.AMOUNT.source,
     })
     @ValidateIf((_object, value: unknown) => value !== undefined)
     @IsString()
-    @Matches(SUBSCRIPTION_AMOUNT_PATTERN, {
+    @Matches($subscription.pattern.AMOUNT, {
         message:
             'amount must be greater than zero with up to 15 integer and 4 fractional digits',
     })
@@ -301,11 +300,11 @@ export class UpdateSubscriptionRequest {
         example: 'EUR',
         minLength: 3,
         maxLength: 3,
-        pattern: SUBSCRIPTION_CURRENCY_PATTERN.source,
+        pattern: $subscription.pattern.CURRENCY.source,
     })
     @ValidateIf((_object, value: unknown) => value !== undefined)
     @IsString()
-    @Matches(SUBSCRIPTION_CURRENCY_PATTERN, {
+    @Matches($subscription.pattern.CURRENCY, {
         message: 'currency must be a three-letter uppercase code',
     })
     currency?: string;
@@ -313,11 +312,11 @@ export class UpdateSubscriptionRequest {
     @ApiPropertyOptional({
         example: '2026-09-30',
         format: 'date',
-        pattern: SUBSCRIPTION_DATE_PATTERN.source,
+        pattern: $subscription.pattern.DATE.source,
     })
     @ValidateIf((_object, value: unknown) => value !== undefined)
     @IsString()
-    @Matches(SUBSCRIPTION_DATE_PATTERN, {
+    @Matches($subscription.pattern.DATE, {
         message: 'nextBillingDate must use YYYY-MM-DD format',
     })
     @IsISO8601({ strict: true })
@@ -397,21 +396,21 @@ export class GetSubscriptionResponse extends SubscriptionResponse<SubscriptionWi
 
 export class ListSubscriptionsRequest extends CursorPaginationRequest {
     @ApiPropertyOptional({
-        example: SubscriptionStatus.Active,
-        enum: Object.values(SubscriptionStatus),
+        example: $subscription.status.ACTIVE,
+        enum: Object.values($subscription.status),
         enumName: 'SubscriptionStatus',
     })
     @IsOptional()
-    @IsIn(Object.values(SubscriptionStatus))
+    @IsIn(Object.values($subscription.status))
     status?: SubscriptionStatus;
 
     @ApiPropertyOptional({
-        example: SubscriptionBillingState.Ready,
-        enum: Object.values(SubscriptionBillingState),
+        example: $subscription.billingState.READY,
+        enum: Object.values($subscription.billingState),
         enumName: 'SubscriptionBillingState',
     })
     @IsOptional()
-    @IsIn(Object.values(SubscriptionBillingState))
+    @IsIn(Object.values($subscription.billingState))
     billingState?: SubscriptionBillingState;
 
     @ApiPropertyOptional({ example: 'CUST-1001', maxLength: 100 })
@@ -425,11 +424,11 @@ export class ListSubscriptionsRequest extends CursorPaginationRequest {
         description: 'Include subscriptions due on or before this date',
         example: '2026-08-31',
         format: 'date',
-        pattern: SUBSCRIPTION_DATE_PATTERN.source,
+        pattern: $subscription.pattern.DATE.source,
     })
     @IsOptional()
     @IsString()
-    @Matches(SUBSCRIPTION_DATE_PATTERN, {
+    @Matches($subscription.pattern.DATE, {
         message: 'dueBefore must use YYYY-MM-DD format',
     })
     @IsISO8601({ strict: true })

@@ -3,18 +3,12 @@ import {
     NotFoundException,
     ServiceUnavailableException,
 } from '@nestjs/common';
-
-const BillingSchedulerErrorCode = {
-    LeaseUnavailable: 'SCHEDULER_LEASE_UNAVAILABLE',
-    RunNotFound: 'SCHEDULER_RUN_NOT_FOUND',
-    RunStateConflict: 'SCHEDULER_RUN_STATE_CONFLICT',
-    ShuttingDown: 'SCHEDULER_SHUTTING_DOWN',
-} as const;
+import { $billingScheduler } from './billing-scheduler.constant';
 
 export class SchedulerLeaseUnavailableException extends ConflictException {
     constructor() {
         super({
-            code: BillingSchedulerErrorCode.LeaseUnavailable,
+            code: $billingScheduler.errorCode.LEASE_UNAVAILABLE,
             message:
                 'Another billing coordinator owns the active scheduler lease',
         });
@@ -24,7 +18,7 @@ export class SchedulerLeaseUnavailableException extends ConflictException {
 export class SchedulerRunNotFoundException extends NotFoundException {
     constructor() {
         super({
-            code: BillingSchedulerErrorCode.RunNotFound,
+            code: $billingScheduler.errorCode.RUN_NOT_FOUND,
             message: 'Scheduler run was not found',
         });
     }
@@ -33,7 +27,7 @@ export class SchedulerRunNotFoundException extends NotFoundException {
 export class SchedulerRunStateConflictException extends ConflictException {
     constructor() {
         super({
-            code: BillingSchedulerErrorCode.RunStateConflict,
+            code: $billingScheduler.errorCode.RUN_STATE_CONFLICT,
             message: 'Scheduler run state changed before it could be updated',
         });
     }
@@ -42,7 +36,7 @@ export class SchedulerRunStateConflictException extends ConflictException {
 export class SchedulerShuttingDownException extends ServiceUnavailableException {
     constructor() {
         super({
-            code: BillingSchedulerErrorCode.ShuttingDown,
+            code: $billingScheduler.errorCode.SHUTTING_DOWN,
             message: 'Billing scheduler is shutting down',
         });
     }

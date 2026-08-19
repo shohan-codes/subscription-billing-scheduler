@@ -7,7 +7,7 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
 import { AppLogger } from '../../common/app-logger';
 import { AppConfigService } from '../../config/app-config.service';
-import { BILLING_SCHEDULER_JOB_NAME } from './billing-scheduler.constant';
+import { $billingScheduler } from './billing-scheduler.constant';
 import { BillingSchedulerService } from './billing-scheduler.service';
 
 /** Registers the configured billing cron trigger and delegates execution to the coordinator service. */
@@ -26,34 +26,34 @@ export class BillingSchedulerCron
 
     /** Registers and starts the configured billing cron task when scheduling is enabled. */
     onModuleInit(): void {
-        if (!this.config.billing.cronEnabled) {
-            this.logger.info('billing.cron.disabled', {
-                jobName: BILLING_SCHEDULER_JOB_NAME,
+        if (!this.config.billing.CRON_ENABLED) {
+            this.logger.info($billingScheduler.logEvent.CRON_DISABLED, {
+                jobName: $billingScheduler.job.NAME,
             });
             return;
         }
 
         this.job = CronJob.from({
-            cronTime: this.config.billing.cronExpression,
+            cronTime: this.config.billing.CRON_EXPRESSION,
             onTick: () => void this.service.triggerScheduled(),
             start: false,
-            timeZone: this.config.billing.timezone,
+            timeZone: this.config.billing.TIMEZONE,
         });
 
-        this.registry.addCronJob(BILLING_SCHEDULER_JOB_NAME, this.job);
+        this.registry.addCronJob($billingScheduler.job.NAME, this.job);
         this.job.start();
-        this.logger.info('billing.cron.registered', {
-            jobName: BILLING_SCHEDULER_JOB_NAME,
-            cronExpression: this.config.billing.cronExpression,
-            timezone: this.config.billing.timezone,
+        this.logger.info($billingScheduler.logEvent.CRON_REGISTERED, {
+            jobName: $billingScheduler.job.NAME,
+            cronExpression: this.config.billing.CRON_EXPRESSION,
+            timezone: this.config.billing.TIMEZONE,
         });
     }
 
     /** Stops the registered cron task before application teardown begins. */
     beforeApplicationShutdown(): void {
         void this.job?.stop();
-        this.logger.info('billing.cron.stopped', {
-            jobName: BILLING_SCHEDULER_JOB_NAME,
+        this.logger.info($billingScheduler.logEvent.CRON_STOPPED, {
+            jobName: $billingScheduler.job.NAME,
         });
     }
 }

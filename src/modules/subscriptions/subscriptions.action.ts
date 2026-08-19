@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { daysInMonth } from '../../common/utils/calendar-date';
 import {
-    SubscriptionBillingState,
-    SubscriptionStatus,
+    $subscription,
+    type SubscriptionStatus,
 } from './subscriptions.constant';
 import type {
     BillingRetrySubscriptionRequest,
@@ -54,39 +54,39 @@ export class SubscriptionsAction {
 
     /** Resolves the paused status for a valid pause transition. */
     resolvePauseStatusOrThrow(current: SubscriptionRecord): SubscriptionStatus {
-        if (current.status !== SubscriptionStatus.Active) {
+        if (current.status !== $subscription.status.ACTIVE) {
             throw new SubscriptionStateConflictException(
                 'Only active subscriptions can be paused',
             );
         }
 
-        return SubscriptionStatus.Paused;
+        return $subscription.status.PAUSED;
     }
 
     /** Resolves the active status for a valid resume transition. */
     resolveResumeStatusOrThrow(
         current: SubscriptionRecord,
     ): SubscriptionStatus {
-        if (current.status !== SubscriptionStatus.Paused) {
+        if (current.status !== $subscription.status.PAUSED) {
             throw new SubscriptionStateConflictException(
                 'Only paused subscriptions can be resumed',
             );
         }
 
-        return SubscriptionStatus.Active;
+        return $subscription.status.ACTIVE;
     }
 
     /** Resolves the canceled status for a valid terminal transition. */
     resolveCancelStatusOrThrow(
         current: SubscriptionRecord,
     ): SubscriptionStatus {
-        if (current.status === SubscriptionStatus.Canceled) {
+        if (current.status === $subscription.status.CANCELED) {
             throw new SubscriptionStateConflictException(
                 'Canceled subscription is terminal',
             );
         }
 
-        return SubscriptionStatus.Canceled;
+        return $subscription.status.CANCELED;
     }
 
     /** Validates whether an operator may clear the current billing failure state. */
@@ -94,18 +94,18 @@ export class SubscriptionsAction {
         current: SubscriptionRecord,
         request: BillingRetrySubscriptionRequest,
     ): void {
-        if (current.status === SubscriptionStatus.Canceled) {
+        if (current.status === $subscription.status.CANCELED) {
             throw new SubscriptionBillingRecoveryConflictException(
                 'Canceled subscription cannot be returned to billing',
             );
         }
-        if (current.billing_state === SubscriptionBillingState.Ready) {
+        if (current.billing_state === $subscription.billingState.READY) {
             throw new SubscriptionBillingRecoveryConflictException(
                 'Subscription billing state is already ready',
             );
         }
         if (
-            current.billing_state === SubscriptionBillingState.Blocked &&
+            current.billing_state === $subscription.billingState.BLOCKED &&
             request.unblock !== true
         ) {
             throw new SubscriptionUnblockRequiredException();
@@ -128,7 +128,7 @@ export class SubscriptionsAction {
         const scheduleChanged = hasScheduleChanges(current, request);
         if (!scheduleChanged) return false;
 
-        if (current.status === SubscriptionStatus.Canceled) {
+        if (current.status === $subscription.status.CANCELED) {
             throw new InvalidSubscriptionStateException();
         }
         if (

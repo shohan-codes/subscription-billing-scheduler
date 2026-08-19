@@ -1,8 +1,5 @@
 import { BillingSchedulerAction } from '../billing-scheduler.action';
-import {
-    BILLING_SCHEDULER_JOB_NAME,
-    SchedulerRunStatus,
-} from '../billing-scheduler.constant';
+import { $billingScheduler } from '../billing-scheduler.constant';
 import {
     SchedulerLeaseUnavailableException,
     SchedulerShuttingDownException,
@@ -17,7 +14,7 @@ describe('BillingSchedulerAction', () => {
         const first = action.createLeaseRequest(now, 'instance-a', 120);
         const second = action.createLeaseRequest(now, 'instance-a', 120);
 
-        expect(first.lockName).toBe(BILLING_SCHEDULER_JOB_NAME);
+        expect(first.lockName).toBe($billingScheduler.job.NAME);
         expect(first.ownerToken).not.toBe(second.ownerToken);
         expect(first.ownerToken).toMatch(/^instance-a:/);
         expect(first.leaseExpiresAt.toISOString()).toBe(
@@ -71,7 +68,7 @@ describe('BillingSchedulerAction', () => {
     it('rejects a manual run that was skipped because the lease was unavailable', () => {
         expect(() =>
             action.validateManualRunOrThrow({
-                status: SchedulerRunStatus.SkippedLockUnavailable,
+                status: $billingScheduler.runStatus.SKIPPED_LOCK_UNAVAILABLE,
             } as SchedulerRunRecord),
         ).toThrow(SchedulerLeaseUnavailableException);
     });
@@ -86,8 +83,8 @@ describe('BillingSchedulerAction', () => {
         const capped = action.classifyItemFailure({ code: '40001' }, 5, now);
 
         expect(transient).toEqual({
-            type: 'transient',
-            code: 'DATABASE_TRANSIENT_FAILURE',
+            type: $billingScheduler.failureType.TRANSIENT,
+            code: $billingScheduler.errorCode.DATABASE_TRANSIENT_FAILURE,
             message:
                 'A temporary database error interrupted subscription billing',
             failureCount: 1,
@@ -105,8 +102,8 @@ describe('BillingSchedulerAction', () => {
                 new Date('2026-08-18T10:00:00.000Z'),
             ),
         ).toEqual({
-            type: 'permanent',
-            code: 'BILLING_ITEM_FAILED',
+            type: $billingScheduler.failureType.PERMANENT,
+            code: $billingScheduler.errorCode.BILLING_ITEM_FAILED,
             message:
                 'Subscription billing failed because of an unrecoverable item error',
             failureCount: 2,
@@ -124,6 +121,6 @@ describe('BillingSchedulerAction', () => {
                 skippedCount: 0,
                 invoicesCreatedCount: 1,
             }),
-        ).toBe(SchedulerRunStatus.CompletedWithErrors);
+        ).toBe($billingScheduler.runStatus.COMPLETED_WITH_ERRORS);
     });
 });

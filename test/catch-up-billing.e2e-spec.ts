@@ -1,8 +1,11 @@
+import { $billingScheduler } from '../src/modules/billing-scheduler/billing-scheduler.constant';
+import { $subscription } from '../src/modules/subscriptions/subscriptions.constant';
 import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
-import { DATABASE, type DatabaseClient } from '../src/database/database.module';
+import { $database } from '../src/database/database.constant';
+import type { DatabaseClient } from '../src/database/database.module';
 import { InvoicesService } from '../src/modules/invoices/invoices.service';
 
 const CUSTOMER_REFERENCE = `CATCH-UP-${randomUUID()}`;
@@ -20,7 +23,7 @@ describe('Catch-up billing and per-subscription safety limits (e2e)', () => {
         }).compile();
         app = moduleFixture.createNestApplication();
         await app.init();
-        database = app.get<DatabaseClient>(DATABASE);
+        database = app.get<DatabaseClient>($database.token.CLIENT);
         invoices = app.get(InvoicesService);
     });
 
@@ -143,10 +146,10 @@ describe('Catch-up billing and per-subscription safety limits (e2e)', () => {
             .values({
                 id: runId,
                 job_name: 'billing.invoice.scheduler',
-                trigger_type: 'manual',
+                trigger_type: $billingScheduler.triggerType.MANUAL,
                 triggered_at: now,
                 cutoff_date: '2026-07-31',
-                status: 'running',
+                status: $billingScheduler.runStatus.RUNNING,
                 instance_id: 'catch-up-e2e',
                 lease_owner_token: randomUUID(),
                 started_at: now,
@@ -159,8 +162,8 @@ describe('Catch-up billing and per-subscription safety limits (e2e)', () => {
                 id: subscriptionId,
                 customer_reference: CUSTOMER_REFERENCE,
                 description: 'Catch-up monthly plan',
-                status: 'active',
-                billing_state: 'ready',
+                status: $subscription.status.ACTIVE,
+                billing_state: $subscription.billingState.READY,
                 currency: 'USD',
                 amount: '25.0000',
                 start_date: '2026-01-31',

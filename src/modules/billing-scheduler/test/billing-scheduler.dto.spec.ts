@@ -4,12 +4,13 @@ import {
     ListBillingRunItemsRequest,
     ListBillingRunsRequest,
 } from '../billing-scheduler.dto';
+import { $billingScheduler } from '../billing-scheduler.constant';
 
 describe('BillingScheduler DTOs', () => {
     it('validates scheduler run list filters', async () => {
         const request = plainToInstance(ListBillingRunsRequest, {
-            triggerType: 'manual',
-            status: 'completed',
+            triggerType: $billingScheduler.triggerType.MANUAL,
+            status: $billingScheduler.runStatus.COMPLETED,
             limit: '25',
         });
 

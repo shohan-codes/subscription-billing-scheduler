@@ -14,7 +14,7 @@ import {
     CursorPaginationRequest,
 } from '../../common/dto/cursor-pagination.dto';
 import { ResponseDto } from '../../common/dto/response.dto';
-import { INVOICE_DATE_PATTERN, InvoiceStatus } from './invoices.constant';
+import { $invoice, type InvoiceStatus } from './invoices.constant';
 import type {
     InvoiceDetailRecord,
     InvoiceItemRecord,
@@ -79,8 +79,8 @@ class InvoiceResponse<
     issueDate!: string;
 
     @InvoiceResponseField({
-        example: InvoiceStatus.Issued,
-        enum: Object.values(InvoiceStatus),
+        example: $invoice.status.ISSUED,
+        enum: Object.values($invoice.status),
         enumName: 'InvoiceStatus',
     })
     status!: InvoiceStatus;
@@ -192,11 +192,11 @@ export class ListInvoicesRequest extends CursorPaginationRequest {
     @ApiPropertyOptional({
         example: '2026-08-31',
         format: 'date',
-        pattern: INVOICE_DATE_PATTERN.source,
+        pattern: $invoice.pattern.DATE.source,
     })
     @IsOptional()
     @IsString()
-    @Matches(INVOICE_DATE_PATTERN, {
+    @Matches($invoice.pattern.DATE, {
         message: 'billingPeriodStart must use YYYY-MM-DD format',
     })
     @IsISO8601({ strict: true })
@@ -205,11 +205,11 @@ export class ListInvoicesRequest extends CursorPaginationRequest {
     @ApiPropertyOptional({
         example: '2026-09-30',
         format: 'date',
-        pattern: INVOICE_DATE_PATTERN.source,
+        pattern: $invoice.pattern.DATE.source,
     })
     @IsOptional()
     @IsString()
-    @Matches(INVOICE_DATE_PATTERN, {
+    @Matches($invoice.pattern.DATE, {
         message: 'billingPeriodEnd must use YYYY-MM-DD format',
     })
     @IsISO8601({ strict: true })
@@ -218,11 +218,11 @@ export class ListInvoicesRequest extends CursorPaginationRequest {
     @ApiPropertyOptional({
         example: '2026-08-31',
         format: 'date',
-        pattern: INVOICE_DATE_PATTERN.source,
+        pattern: $invoice.pattern.DATE.source,
     })
     @IsOptional()
     @IsString()
-    @Matches(INVOICE_DATE_PATTERN, {
+    @Matches($invoice.pattern.DATE, {
         message: 'issueDate must use YYYY-MM-DD format',
     })
     @IsISO8601({ strict: true })

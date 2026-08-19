@@ -6,8 +6,9 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { AppConfigService } from '../src/config/app-config.service';
 import { ShutdownState } from '../src/common/shutdown-state';
-import { DATABASE, type DatabaseClient } from '../src/database/database.module';
-import { BILLING_SCHEDULER_JOB_NAME } from '../src/modules/billing-scheduler/billing-scheduler.constant';
+import { $database } from '../src/database/database.constant';
+import type { DatabaseClient } from '../src/database/database.module';
+import { $billingScheduler } from '../src/modules/billing-scheduler/billing-scheduler.constant';
 import { BillingSchedulerRepository } from '../src/modules/billing-scheduler/billing-scheduler.repository';
 import { BillingSchedulerService } from '../src/modules/billing-scheduler/billing-scheduler.service';
 
@@ -40,8 +41,8 @@ describe('Scheduler run history and manual trigger (e2e)', () => {
             imports: [AppModule],
         }).compile();
         Object.assign(moduleFixture.get(AppConfigService).operator, {
-            id: 'operator-test',
-            token: OPERATOR_TOKEN,
+            ID: 'operator-test',
+            TOKEN: OPERATOR_TOKEN,
         });
         Object.assign(moduleFixture.get(AppConfigService).billing, {
             cronEnabled: false,
@@ -59,7 +60,7 @@ describe('Scheduler run history and manual trigger (e2e)', () => {
         app.setGlobalPrefix('api/v1');
         await app.init();
 
-        database = app.get<DatabaseClient>(DATABASE);
+        database = app.get<DatabaseClient>($database.token.CLIENT);
         scheduler = app.get(BillingSchedulerService);
         repository = app.get(BillingSchedulerRepository);
     });
@@ -77,7 +78,7 @@ describe('Scheduler run history and manual trigger (e2e)', () => {
         }
         await database
             .deleteFrom('scheduler_locks')
-            .where('lock_name', '=', BILLING_SCHEDULER_JOB_NAME)
+            .where('lock_name', '=', $billingScheduler.job.NAME)
             .execute();
         await app.close();
     });
@@ -144,7 +145,7 @@ describe('Scheduler run history and manual trigger (e2e)', () => {
         const now = new Date();
         const ownerToken = `blocking-owner:${randomUUID()}`;
         await repository.acquireLease({
-            lockName: BILLING_SCHEDULER_JOB_NAME,
+            lockName: $billingScheduler.job.NAME,
             ownerToken,
             acquiredAt: now,
             leaseExpiresAt: new Date(now.getTime() + 120_000),
@@ -166,7 +167,7 @@ describe('Scheduler run history and manual trigger (e2e)', () => {
         runIds.push(skipped.id);
         expect(skipped.error_code).toBe('SCHEDULER_LEASE_UNAVAILABLE');
 
-        await repository.releaseLease(BILLING_SCHEDULER_JOB_NAME, ownerToken);
+        await repository.releaseLease($billingScheduler.job.NAME, ownerToken);
     });
 
     it('starts no new scheduler attempts after graceful shutdown begins', async () => {
@@ -179,7 +180,11 @@ describe('Scheduler run history and manual trigger (e2e)', () => {
         const newRuns = await database
             .selectFrom('scheduler_runs')
             .select('id')
-            .where('instance_id', '=', app.get(AppConfigService).app.instanceId)
+            .where(
+                'instance_id',
+                '=',
+                app.get(AppConfigService).app.INSTANCE_ID,
+            )
             .where('triggered_at', '>=', startedAt)
             .execute();
         expect(newRuns).toEqual([]);

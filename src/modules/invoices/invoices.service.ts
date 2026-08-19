@@ -2,9 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { isUUID } from 'class-validator';
 import { Clock } from '../../common/clock';
+import { $database } from '../../database/database.constant';
 import { CursorCodec } from '../../common/utils/cursor-codec';
 import { InvoicesAction } from './invoices.action';
-import { INVOICE_DATE_PATTERN } from './invoices.constant';
+import { $invoice } from './invoices.constant';
 import {
     GetInvoiceRequest,
     GetInvoiceResponse,
@@ -62,7 +63,9 @@ export class InvoicesService {
                     duplicateCandidate,
                     draft.invoice,
                 );
-            const result = createdInvoice ? 'created' : 'duplicate_confirmed';
+            const result = createdInvoice
+                ? $invoice.generationOutcome.CREATED
+                : $invoice.generationOutcome.DUPLICATE_CONFIRMED;
 
             if (createdInvoice) {
                 await transaction.createItemOrThrow(draft.item);
@@ -82,7 +85,9 @@ export class InvoicesService {
                 id: randomUUID(),
                 run_id: request.runId,
                 subscription_id: subscription.id,
-                result: createdInvoice ? 'success' : 'duplicate_confirmed',
+                result: createdInvoice
+                    ? $database.schedulerRunItem.result.SUCCESS
+                    : $database.schedulerRunItem.result.DUPLICATE_CONFIRMED,
                 before_billing_date: subscription.next_billing_date,
                 after_billing_date: draft.nextBillingDate,
                 invoices_created: createdInvoice ? 1 : 0,
@@ -171,13 +176,17 @@ export class InvoicesService {
 
             const completedAt = this.clock.now();
             const result =
-                invoicesCreated > 0 ? 'created' : 'duplicate_confirmed';
+                invoicesCreated > 0
+                    ? $invoice.generationOutcome.CREATED
+                    : $invoice.generationOutcome.DUPLICATE_CONFIRMED;
             await transaction.createRunItemOrThrow({
                 id: randomUUID(),
                 run_id: request.runId,
                 subscription_id: subscription.id,
                 result:
-                    result === 'created' ? 'success' : 'duplicate_confirmed',
+                    result === $invoice.generationOutcome.CREATED
+                        ? $database.schedulerRunItem.result.SUCCESS
+                        : $database.schedulerRunItem.result.DUPLICATE_CONFIRMED,
                 before_billing_date: beforeBillingDate,
                 after_billing_date: subscription.next_billing_date,
                 invoices_created: invoicesCreated,
@@ -258,7 +267,7 @@ function isInvoiceListCursor(
 ): payload is InvoiceListCursor {
     return (
         typeof payload.issueDate === 'string' &&
-        INVOICE_DATE_PATTERN.test(payload.issueDate) &&
+        $invoice.pattern.DATE.test(payload.issueDate) &&
         typeof payload.id === 'string' &&
         isUUID(payload.id) &&
         Object.keys(payload).length === 2

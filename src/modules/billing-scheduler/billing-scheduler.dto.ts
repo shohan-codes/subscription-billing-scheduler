@@ -7,9 +7,10 @@ import {
 } from '../../common/dto/cursor-pagination.dto';
 import { ResponseDto } from '../../common/dto/response.dto';
 import {
-    SchedulerRunItemResult,
-    SchedulerRunStatus,
-    SchedulerTriggerType,
+    $billingScheduler,
+    type SchedulerRunItemResult,
+    type SchedulerRunStatus,
+    type SchedulerTriggerType,
 } from './billing-scheduler.constant';
 import type {
     SchedulerRunItemListResult,
@@ -31,22 +32,22 @@ class BillingRunResponse extends ResponseDto<SchedulerRunRecord> {
     id!: string;
 
     @RunResponseField({
-        example: 'billing.invoice.scheduler',
+        example: $billingScheduler.job.NAME,
         transform: (source) => source.job_name,
     })
     jobName!: string;
 
     @RunResponseField({
-        example: SchedulerTriggerType.Manual,
-        enum: Object.values(SchedulerTriggerType),
+        example: $billingScheduler.triggerType.MANUAL,
+        enum: Object.values($billingScheduler.triggerType),
         enumName: 'SchedulerTriggerType',
         transform: (source) => source.trigger_type,
     })
     triggerType!: SchedulerTriggerType;
 
     @RunResponseField({
-        example: SchedulerRunStatus.Completed,
-        enum: Object.values(SchedulerRunStatus),
+        example: $billingScheduler.runStatus.COMPLETED,
+        enum: Object.values($billingScheduler.runStatus),
         enumName: 'SchedulerRunStatus',
     })
     status!: SchedulerRunStatus;
@@ -161,8 +162,8 @@ class BillingRunItemResponse extends ResponseDto<SchedulerRunItemRecord> {
     subscriptionId!: string;
 
     @RunItemResponseField({
-        example: SchedulerRunItemResult.Success,
-        enum: Object.values(SchedulerRunItemResult),
+        example: $billingScheduler.runItemResult.SUCCESS,
+        enum: Object.values($billingScheduler.runItemResult),
         enumName: 'SchedulerRunItemResult',
     })
     result!: SchedulerRunItemResult;
@@ -245,21 +246,21 @@ export class GetBillingRunResponse extends BillingRunResponse {}
 
 export class ListBillingRunsRequest extends CursorPaginationRequest {
     @ApiPropertyOptional({
-        example: SchedulerTriggerType.Manual,
-        enum: Object.values(SchedulerTriggerType),
+        example: $billingScheduler.triggerType.MANUAL,
+        enum: Object.values($billingScheduler.triggerType),
         enumName: 'SchedulerTriggerType',
     })
     @IsOptional()
-    @IsIn(Object.values(SchedulerTriggerType))
+    @IsIn(Object.values($billingScheduler.triggerType))
     triggerType?: SchedulerTriggerType;
 
     @ApiPropertyOptional({
-        example: SchedulerRunStatus.Completed,
-        enum: Object.values(SchedulerRunStatus),
+        example: $billingScheduler.runStatus.COMPLETED,
+        enum: Object.values($billingScheduler.runStatus),
         enumName: 'SchedulerRunStatus',
     })
     @IsOptional()
-    @IsIn(Object.values(SchedulerRunStatus))
+    @IsIn(Object.values($billingScheduler.runStatus))
     status?: SchedulerRunStatus;
 }
 
@@ -287,12 +288,12 @@ export class ListBillingRunsResponse extends ResponseDto<SchedulerRunListResult>
 
 export class ListBillingRunItemsRequest extends CursorPaginationRequest {
     @ApiPropertyOptional({
-        example: SchedulerRunItemResult.Failed,
-        enum: Object.values(SchedulerRunItemResult),
+        example: $billingScheduler.runItemResult.FAILED,
+        enum: Object.values($billingScheduler.runItemResult),
         enumName: 'SchedulerRunItemResult',
     })
     @IsOptional()
-    @IsIn(Object.values(SchedulerRunItemResult))
+    @IsIn(Object.values($billingScheduler.runItemResult))
     result?: SchedulerRunItemResult;
 
     @ApiPropertyOptional({ example: 'DATABASE_DEADLOCK', maxLength: 80 })

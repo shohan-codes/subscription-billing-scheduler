@@ -1,4 +1,13 @@
 import type { ColumnType, Generated } from 'kysely';
+import type {
+    DatabaseInvoiceStatus,
+    DatabaseSchedulerRunItemErrorType,
+    DatabaseSchedulerRunItemResult,
+    DatabaseSchedulerRunStatus,
+    DatabaseSchedulerTriggerType,
+    DatabaseSubscriptionBillingState,
+    DatabaseSubscriptionStatus,
+} from './database.constant';
 
 type DateValue = ColumnType<string, string, string>;
 type NullableDateValue = ColumnType<
@@ -28,17 +37,10 @@ type GeneratedTimestampValue = ColumnType<
 export interface SchedulerRunsTable {
     id: string;
     job_name: string;
-    trigger_type: 'scheduled' | 'manual';
+    trigger_type: DatabaseSchedulerTriggerType;
     triggered_at: TimestampValue;
     cutoff_date: DateValue;
-    status:
-        | 'running'
-        | 'completed'
-        | 'completed_with_errors'
-        | 'failed'
-        | 'skipped_lock_unavailable'
-        | 'abandoned'
-        | 'interrupted';
+    status: DatabaseSchedulerRunStatus;
     instance_id: string;
     lease_owner_token: NullableStringValue;
     started_at: NullableTimestampValue;
@@ -60,8 +62,8 @@ export interface SubscriptionsTable {
     id: string;
     customer_reference: string;
     description: string;
-    status: 'active' | 'paused' | 'canceled';
-    billing_state: 'ready' | 'retry_wait' | 'blocked';
+    status: DatabaseSubscriptionStatus;
+    billing_state: DatabaseSubscriptionBillingState;
     currency: string;
     amount: NumericValue;
     start_date: DateValue;
@@ -101,7 +103,7 @@ export interface InvoicesTable {
     billing_period_end: DateValue;
     issue_date: DateValue;
     /** Invoice rows are created directly in the issued state. */
-    status: 'issued';
+    status: DatabaseInvoiceStatus;
     currency: string;
     subtotal: NumericValue;
     tax_total: GeneratedNumericValue;
@@ -126,14 +128,14 @@ export interface SchedulerRunItemsTable {
     id: string;
     run_id: string;
     subscription_id: string;
-    result: 'success' | 'failed' | 'duplicate_confirmed' | 'skipped';
+    result: DatabaseSchedulerRunItemResult;
     before_billing_date: DateValue;
     after_billing_date: NullableDateValue;
     invoices_created: Generated<number>;
     error_type: ColumnType<
-        'transient' | 'permanent' | null,
-        'transient' | 'permanent' | null | undefined,
-        'transient' | 'permanent' | null
+        DatabaseSchedulerRunItemErrorType | null,
+        DatabaseSchedulerRunItemErrorType | null | undefined,
+        DatabaseSchedulerRunItemErrorType | null
     >;
     error_code: NullableStringValue;
     error_message: NullableStringValue;

@@ -1,3 +1,4 @@
+import { $subscription } from '../../subscriptions/subscriptions.constant';
 import { SubscriptionsAction } from '../../subscriptions/subscriptions.action';
 import type { SubscriptionRecord } from '../../subscriptions/subscriptions.types';
 import { InvoicesAction } from '../invoices.action';
@@ -10,14 +11,15 @@ import type {
     GenerateClaimedInvoiceRequest,
     InvoiceRecord,
 } from '../invoices.types';
+import { $invoice } from '../invoices.constant';
 
 /** Builds the claimed subscription baseline used by invoice action tests. */
 const claimedSubscription = (): SubscriptionRecord => ({
     id: '81849854-7497-4ea4-a097-7aebf39f97f7',
     customer_reference: 'CUST-1001',
     description: 'Pro Plan - Monthly',
-    status: 'active',
-    billing_state: 'ready',
+    status: $subscription.status.ACTIVE,
+    billing_state: $subscription.billingState.READY,
     currency: 'USD',
     amount: '49.0000',
     start_date: '2026-01-01',
@@ -54,7 +56,7 @@ const existingInvoice = (): InvoiceRecord => ({
     billing_period_start: '2026-01-31',
     billing_period_end: '2026-02-28',
     issue_date: '2026-01-31',
-    status: 'issued',
+    status: $invoice.status.ISSUED,
     currency: 'USD',
     subtotal: '49.0000',
     tax_total: '0.0000',
@@ -104,15 +106,10 @@ describe('InvoicesAction', () => {
     it('rejects subscriptions that are not currently billable', () => {
         expect(() =>
             action.validateClaimedSubscriptionOrThrow(
-                { ...claimedSubscription(), status: 'paused' },
-                generationRequest(),
-                now,
-            ),
-        ).toThrow(SubscriptionNotBillableException);
-
-        expect(() =>
-            action.validateClaimedSubscriptionOrThrow(
-                { ...claimedSubscription(), billing_state: 'blocked' },
+                {
+                    ...claimedSubscription(),
+                    status: $subscription.status.PAUSED,
+                },
                 generationRequest(),
                 now,
             ),
@@ -122,7 +119,18 @@ describe('InvoicesAction', () => {
             action.validateClaimedSubscriptionOrThrow(
                 {
                     ...claimedSubscription(),
-                    billing_state: 'retry_wait',
+                    billing_state: $subscription.billingState.BLOCKED,
+                },
+                generationRequest(),
+                now,
+            ),
+        ).toThrow(SubscriptionNotBillableException);
+
+        expect(() =>
+            action.validateClaimedSubscriptionOrThrow(
+                {
+                    ...claimedSubscription(),
+                    billing_state: $subscription.billingState.RETRY_WAIT,
                     billing_retry_at: new Date('2026-01-31T00:07:00.000Z'),
                 },
                 generationRequest(),

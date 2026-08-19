@@ -1,6 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
-import { DATABASE, type DatabaseClient } from '../src/database/database.module';
+import { type DatabaseClient } from '../src/database/database.module';
+import { $database } from '../src/database/database.constant';
+import { $subscription } from '../src/modules/subscriptions/subscriptions.constant';
+import { $invoice } from '../src/modules/invoices/invoices.constant';
 
 const subscriptionIds = [
     '11111111-1111-4111-8111-111111111101',
@@ -24,7 +27,7 @@ async function seed(): Promise<void> {
     });
 
     try {
-        const database = app.get<DatabaseClient>(DATABASE);
+        const database = app.get<DatabaseClient>($database.token.CLIENT);
 
         await database.transaction().execute(async (trx) => {
             await trx
@@ -47,8 +50,8 @@ async function seed(): Promise<void> {
                         id: subscriptionIds[0],
                         customer_reference: 'CUST-DEMO-1001',
                         description: 'Pro Plan - August Due',
-                        status: 'active',
-                        billing_state: 'ready',
+                        status: $subscription.status.ACTIVE,
+                        billing_state: $subscription.billingState.READY,
                         currency: 'USD',
                         amount: '49.0000',
                         start_date: '2026-08-01',
@@ -60,8 +63,8 @@ async function seed(): Promise<void> {
                         id: subscriptionIds[1],
                         customer_reference: 'CUST-DEMO-1001',
                         description: 'Pro Plan - Retry Wait',
-                        status: 'paused',
-                        billing_state: 'retry_wait',
+                        status: $subscription.status.PAUSED,
+                        billing_state: $subscription.billingState.RETRY_WAIT,
                         currency: 'USD',
                         amount: '79.0000',
                         start_date: '2026-08-01',
@@ -77,8 +80,8 @@ async function seed(): Promise<void> {
                         id: subscriptionIds[2],
                         customer_reference: 'CUST-DEMO-1001',
                         description: 'Enterprise Add-on - Blocked',
-                        status: 'active',
-                        billing_state: 'blocked',
+                        status: $subscription.status.ACTIVE,
+                        billing_state: $subscription.billingState.BLOCKED,
                         currency: 'USD',
                         amount: '129.0000',
                         start_date: '2026-08-01',
@@ -94,8 +97,8 @@ async function seed(): Promise<void> {
                         id: subscriptionIds[3],
                         customer_reference: 'CUST-DEMO-2002',
                         description: 'Canceled Legacy Plan',
-                        status: 'canceled',
-                        billing_state: 'blocked',
+                        status: $subscription.status.CANCELED,
+                        billing_state: $subscription.billingState.BLOCKED,
                         currency: 'EUR',
                         amount: '25.5000',
                         start_date: '2026-06-10',
@@ -107,8 +110,8 @@ async function seed(): Promise<void> {
                         id: subscriptionIds[4],
                         customer_reference: 'CUST-DEMO-3003',
                         description: 'Starter Plan - August Due',
-                        status: 'active',
-                        billing_state: 'ready',
+                        status: $subscription.status.ACTIVE,
+                        billing_state: $subscription.billingState.READY,
                         currency: 'USD',
                         amount: '19.0000',
                         start_date: '2026-08-15',
@@ -120,8 +123,8 @@ async function seed(): Promise<void> {
                         id: subscriptionIds[6],
                         customer_reference: 'CUST-DEMO-4004',
                         description: 'Recovery Demo - Retry Wait',
-                        status: 'active',
-                        billing_state: 'retry_wait',
+                        status: $subscription.status.ACTIVE,
+                        billing_state: $subscription.billingState.RETRY_WAIT,
                         currency: 'USD',
                         amount: '39.0000',
                         start_date: '2026-08-01',
@@ -138,8 +141,8 @@ async function seed(): Promise<void> {
                         id: subscriptionIds[5],
                         customer_reference: 'CUST-DEMO-3003',
                         description: 'Starter Plan - Claimed',
-                        status: 'active',
-                        billing_state: 'ready',
+                        status: $subscription.status.ACTIVE,
+                        billing_state: $subscription.billingState.READY,
                         currency: 'USD',
                         amount: '29.0000',
                         start_date: '2026-08-15',
@@ -164,7 +167,7 @@ async function seed(): Promise<void> {
                         billing_period_start: '2026-07-01',
                         billing_period_end: '2026-08-01',
                         issue_date: '2026-07-31',
-                        status: 'issued',
+                        status: $invoice.status.ISSUED,
                         currency: 'USD',
                         subtotal: '79.0000',
                         total: '79.0000',
@@ -178,7 +181,7 @@ async function seed(): Promise<void> {
                         billing_period_start: '2026-08-01',
                         billing_period_end: '2026-09-01',
                         issue_date: '2026-08-31',
-                        status: 'issued',
+                        status: $invoice.status.ISSUED,
                         currency: 'USD',
                         subtotal: '79.0000',
                         total: '79.0000',

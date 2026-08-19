@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AppLogger } from '../../common/app-logger';
 import { Clock } from '../../common/clock';
 import { AppConfigService } from '../../config/app-config.service';
+import { $billingScheduler } from './billing-scheduler.constant';
 import { BillingSchedulerRepository } from './billing-scheduler.repository';
 import type { SchedulerHeartbeatContext } from './billing-scheduler.types';
 
@@ -29,7 +30,7 @@ export class BillingSchedulerHeartbeat {
         this.leaseLost = false;
         this.timer = setInterval(
             () => void this.renewNow(context),
-            this.config.billing.heartbeatSeconds * 1000,
+            this.config.billing.HEARTBEAT_SECONDS * 1000,
         );
     }
 
@@ -43,7 +44,7 @@ export class BillingSchedulerHeartbeat {
     async renewNow(context: SchedulerHeartbeatContext): Promise<boolean> {
         const heartbeatAt = this.clock.now();
         const leaseExpiresAt = new Date(
-            heartbeatAt.getTime() + this.config.billing.leaseSeconds * 1000,
+            heartbeatAt.getTime() + this.config.billing.LEASE_SECONDS * 1000,
         );
 
         try {
@@ -55,7 +56,10 @@ export class BillingSchedulerHeartbeat {
             );
 
             if (!lease) {
-                return this.markLeaseLost(context, 'billing.lease.lost');
+                return this.markLeaseLost(
+                    context,
+                    $billingScheduler.logEvent.LEASE_LOST,
+                );
             }
 
             if (context.runId) {
@@ -67,18 +71,18 @@ export class BillingSchedulerHeartbeat {
                 if (!runUpdated) {
                     return this.markLeaseLost(
                         context,
-                        'billing.run.heartbeat_lost',
+                        $billingScheduler.logEvent.RUN_HEARTBEAT_LOST,
                     );
                 }
             }
         } catch {
             return this.markLeaseLost(
                 context,
-                'billing.lease.heartbeat_failed',
+                $billingScheduler.logEvent.LEASE_HEARTBEAT_FAILED,
             );
         }
 
-        this.logger.debug('billing.lease.heartbeat', {
+        this.logger.debug($billingScheduler.logEvent.LEASE_HEARTBEAT, {
             jobName: context.lockName,
         });
         return true;
@@ -94,7 +98,7 @@ export class BillingSchedulerHeartbeat {
         this.logger.warn(event, {
             jobName: context.lockName,
             ...(context.runId ? { runId: context.runId } : {}),
-            errorCode: 'SCHEDULER_LEASE_LOST',
+            errorCode: $billingScheduler.errorCode.LEASE_LOST,
         });
         return false;
     }

@@ -10,6 +10,7 @@ import { HttpAdapterHost } from '@nestjs/core';
 import type { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { AppLogger } from '../app-logger';
+import { $common } from '../common.constant';
 import { resolveApiError } from '../errors/api-error';
 
 @Injectable()
@@ -34,14 +35,14 @@ export class RequestLoggingInterceptor implements NestInterceptor {
         return next.handle().pipe(
             tap({
                 next: () =>
-                    this.logger.info('http.request.completed', {
+                    this.logger.info($common.http.logEvent.REQUEST_COMPLETED, {
                         ...this.fields(request, response.statusCode, startedAt),
-                        result: 'success',
+                        result: $common.http.result.SUCCESS,
                     }),
                 error: (error: unknown) => {
                     const apiError = resolveApiError(error);
 
-                    this.logger.error('http.request.failed', {
+                    this.logger.error($common.http.logEvent.REQUEST_FAILED, {
                         ...this.fields(
                             request,
                             error instanceof HttpException
@@ -49,7 +50,7 @@ export class RequestLoggingInterceptor implements NestInterceptor {
                                 : 500,
                             startedAt,
                         ),
-                        result: 'failed',
+                        result: $common.http.result.FAILED,
                         errorCode: apiError.code,
                     });
                 },

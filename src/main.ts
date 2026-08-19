@@ -19,7 +19,7 @@ async function bootstrap(): Promise<void> {
     const config = app.get(AppConfigService);
 
     app.useLogger(
-        new ConsoleLogger({ json: config.app.nodeEnv === 'production' }),
+        new ConsoleLogger({ json: config.app.NODE_ENV === 'production' }),
     );
     app.use(helmet());
     app.useBodyParser('json', { limit: '100kb' });
@@ -39,7 +39,7 @@ async function bootstrap(): Promise<void> {
     });
     app.enableShutdownHooks();
 
-    if (config.swagger.enabled) {
+    if (config.swagger.ENABLED) {
         const document = SwaggerModule.createDocument(
             app,
             new DocumentBuilder()
@@ -49,7 +49,7 @@ async function bootstrap(): Promise<void> {
                 .build(),
         );
 
-        SwaggerModule.setup(config.swagger.path, app, document, {
+        SwaggerModule.setup(config.swagger.PATH, app, document, {
             swaggerOptions: {
                 displayRequestDuration: true,
                 persistAuthorization: true,
@@ -57,12 +57,12 @@ async function bootstrap(): Promise<void> {
         });
     }
 
-    await app.listen(config.app.port, '0.0.0.0');
+    await app.listen(config.app.PORT, '0.0.0.0');
 
     new Logger('Bootstrap').log({
         event: 'app.started',
-        instanceId: config.app.instanceId,
-        port: config.app.port,
+        instanceId: config.app.INSTANCE_ID,
+        port: config.app.PORT,
     });
 }
 

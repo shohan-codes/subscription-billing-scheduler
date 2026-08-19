@@ -1,10 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import type { Server } from 'node:http';
+import { $billingScheduler } from '../src/modules/billing-scheduler/billing-scheduler.constant';
+import { $invoice } from '../src/modules/invoices/invoices.constant';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { DATABASE, type DatabaseClient } from '../src/database/database.module';
+import { $database } from '../src/database/database.constant';
+import type { DatabaseClient } from '../src/database/database.module';
 
 type CreateSubscriptionBody = {
     data: {
@@ -65,7 +68,7 @@ describe('Invoice persistence and read APIs (e2e)', () => {
         app.setGlobalPrefix('api/v1');
         await app.init();
 
-        database = app.get<DatabaseClient>(DATABASE);
+        database = app.get<DatabaseClient>($database.token.CLIENT);
     });
 
     afterAll(async () => {
@@ -368,7 +371,7 @@ describe('Invoice persistence and read APIs (e2e)', () => {
                 billing_period_start: billingPeriodStart,
                 billing_period_end: billingPeriodEnd,
                 issue_date: issueDate,
-                status: 'issued',
+                status: $invoice.status.ISSUED,
                 currency: 'USD',
                 subtotal: '49.0000',
                 tax_total: '0.0000',
@@ -408,7 +411,7 @@ describe('Invoice persistence and read APIs (e2e)', () => {
             .values({
                 id,
                 job_name: 'billing.invoice.scheduler',
-                trigger_type: 'manual',
+                trigger_type: $billingScheduler.triggerType.MANUAL,
                 triggered_at: timestamp,
                 cutoff_date: cutoffDate,
                 status: 'completed',

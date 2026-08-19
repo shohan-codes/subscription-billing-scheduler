@@ -5,23 +5,12 @@ import {
     UnprocessableEntityException,
 } from '@nestjs/common';
 
-const SubscriptionErrorCode = {
-    NotFound: 'SUBSCRIPTION_NOT_FOUND',
-    EmptyUpdate: 'EMPTY_SUBSCRIPTION_UPDATE',
-    VersionConflict: 'SUBSCRIPTION_VERSION_CONFLICT',
-    ProcessingClaimActive: 'SUBSCRIPTION_PROCESSING_CLAIM_ACTIVE',
-    StateConflict: 'SUBSCRIPTION_STATE_CONFLICT',
-    BillingRecoveryConflict: 'SUBSCRIPTION_BILLING_RECOVERY_CONFLICT',
-    ExplicitUnblockRequired: 'SUBSCRIPTION_UNBLOCK_REQUIRED',
-    InvalidState: 'INVALID_SUBSCRIPTION_STATE',
-    InvalidDates: 'INVALID_SUBSCRIPTION_DATES',
-    InvalidBillingAnchor: 'INVALID_BILLING_ANCHOR',
-} as const;
+import { $subscription } from './subscriptions.constant';
 
 export class SubscriptionNotFoundException extends NotFoundException {
     constructor() {
         super({
-            code: SubscriptionErrorCode.NotFound,
+            code: $subscription.errorCode.NOT_FOUND,
             message: 'Subscription was not found',
         });
     }
@@ -30,7 +19,7 @@ export class SubscriptionNotFoundException extends NotFoundException {
 export class EmptySubscriptionUpdateException extends BadRequestException {
     constructor() {
         super({
-            code: SubscriptionErrorCode.EmptyUpdate,
+            code: $subscription.errorCode.EMPTY_UPDATE,
             message: 'At least one subscription field must be provided',
         });
     }
@@ -39,7 +28,7 @@ export class EmptySubscriptionUpdateException extends BadRequestException {
 export class SubscriptionVersionConflictException extends ConflictException {
     constructor() {
         super({
-            code: SubscriptionErrorCode.VersionConflict,
+            code: $subscription.errorCode.VERSION_CONFLICT,
             message: 'Subscription version is stale',
         });
     }
@@ -48,7 +37,7 @@ export class SubscriptionVersionConflictException extends ConflictException {
 export class SubscriptionProcessingClaimActiveException extends ConflictException {
     constructor() {
         super({
-            code: SubscriptionErrorCode.ProcessingClaimActive,
+            code: $subscription.errorCode.PROCESSING_CLAIM_ACTIVE,
             message:
                 'Subscription schedule cannot be changed while processing is active',
         });
@@ -60,7 +49,7 @@ export class SubscriptionStateConflictException extends ConflictException {
         message = 'Subscription state changed or transition is not allowed',
     ) {
         super({
-            code: SubscriptionErrorCode.StateConflict,
+            code: $subscription.errorCode.STATE_CONFLICT,
             message,
         });
     }
@@ -69,7 +58,7 @@ export class SubscriptionStateConflictException extends ConflictException {
 export class SubscriptionBillingRecoveryConflictException extends ConflictException {
     constructor(message = 'Subscription billing state cannot be recovered') {
         super({
-            code: SubscriptionErrorCode.BillingRecoveryConflict,
+            code: $subscription.errorCode.BILLING_RECOVERY_CONFLICT,
             message,
         });
     }
@@ -78,7 +67,7 @@ export class SubscriptionBillingRecoveryConflictException extends ConflictExcept
 export class SubscriptionUnblockRequiredException extends ConflictException {
     constructor() {
         super({
-            code: SubscriptionErrorCode.ExplicitUnblockRequired,
+            code: $subscription.errorCode.EXPLICIT_UNBLOCK_REQUIRED,
             message:
                 'Blocked subscription requires an explicit unblock request',
         });
@@ -88,7 +77,7 @@ export class SubscriptionUnblockRequiredException extends ConflictException {
 export class InvalidSubscriptionStateException extends UnprocessableEntityException {
     constructor() {
         super({
-            code: SubscriptionErrorCode.InvalidState,
+            code: $subscription.errorCode.INVALID_STATE,
             message: 'Canceled subscription schedule cannot be changed',
         });
     }
@@ -97,7 +86,7 @@ export class InvalidSubscriptionStateException extends UnprocessableEntityExcept
 export class InvalidSubscriptionDatesException extends UnprocessableEntityException {
     constructor() {
         super({
-            code: SubscriptionErrorCode.InvalidDates,
+            code: $subscription.errorCode.INVALID_DATES,
             message: 'First billing date must be on or after the start date',
         });
     }
@@ -106,7 +95,7 @@ export class InvalidSubscriptionDatesException extends UnprocessableEntityExcept
 export class InvalidBillingAnchorException extends UnprocessableEntityException {
     constructor() {
         super({
-            code: SubscriptionErrorCode.InvalidBillingAnchor,
+            code: $subscription.errorCode.INVALID_BILLING_ANCHOR,
             message: 'Billing anchor does not match the first billing date',
         });
     }

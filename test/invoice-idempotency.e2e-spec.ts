@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type { Server } from 'node:http';
+import { $billingScheduler } from '../src/modules/billing-scheduler/billing-scheduler.constant';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { DATABASE, type DatabaseClient } from '../src/database/database.module';
+import { $database } from '../src/database/database.constant';
+import type { DatabaseClient } from '../src/database/database.module';
 import { InvoicePeriodConflictException } from '../src/modules/invoices/invoices.errors';
 import { InvoicesService } from '../src/modules/invoices/invoices.service';
 
@@ -62,7 +64,7 @@ describe('Invoice idempotency and duplicate protection (e2e)', () => {
         app.setGlobalPrefix('api/v1');
         await app.init();
 
-        database = app.get<DatabaseClient>(DATABASE);
+        database = app.get<DatabaseClient>($database.token.CLIENT);
         invoices = app.get(InvoicesService);
     });
 
@@ -305,10 +307,10 @@ describe('Invoice idempotency and duplicate protection (e2e)', () => {
             .values({
                 id,
                 job_name: 'billing.invoice.scheduler',
-                trigger_type: 'manual',
+                trigger_type: $billingScheduler.triggerType.MANUAL,
                 triggered_at: '2026-01-31T00:05:00.000Z',
                 cutoff_date: '2026-01-31',
-                status: 'running',
+                status: $billingScheduler.runStatus.RUNNING,
                 instance_id: 'invoice-idempotency-e2e',
                 lease_owner_token: `lease:${id}`,
                 started_at: '2026-01-31T00:05:00.000Z',

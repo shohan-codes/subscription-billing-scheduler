@@ -3,7 +3,7 @@ import type { ShutdownState } from '../../../common/shutdown-state';
 import type { CursorCodec } from '../../../common/utils/cursor-codec';
 import type { AppConfigService } from '../../../config/app-config.service';
 import type { InvoicesService } from '../../invoices/invoices.service';
-import { SchedulerRunStatus } from '../billing-scheduler.constant';
+import { $billingScheduler } from '../billing-scheduler.constant';
 import type { BillingSchedulerHeartbeat } from '../billing-scheduler.heartbeat';
 import type { BillingSchedulerRepository } from '../billing-scheduler.repository';
 import { BillingSchedulerAction } from '../billing-scheduler.action';
@@ -16,7 +16,7 @@ import type {
 
 const triggeredAt = new Date('2026-08-18T10:00:00.000Z');
 const request: SchedulerLeaseRequest = {
-    lockName: 'billing.invoice.scheduler',
+    lockName: $billingScheduler.job.NAME,
     ownerToken: 'instance-a:owner-a',
     acquiredAt: triggeredAt,
     leaseExpiresAt: new Date('2026-08-18T10:02:00.000Z'),
@@ -44,7 +44,7 @@ function createService(acquired: boolean, shuttingDown = false) {
         );
     const finalizeRunOrThrow = jest.fn().mockResolvedValue({
         id: 'run-a',
-        status: SchedulerRunStatus.Completed,
+        status: $billingScheduler.runStatus.COMPLETED,
     });
     const releaseLease = jest.fn().mockResolvedValue(true);
     const start = jest.fn();
@@ -85,10 +85,12 @@ function createService(acquired: boolean, shuttingDown = false) {
             resolveClaimBatchLimit: jest.fn(() => 100),
             isRunDurationLimitReached: jest.fn(() => false),
             validateTriggerAllowedOrThrow: jest.fn(),
-            resolveCompletedStatus: jest.fn(() => SchedulerRunStatus.Completed),
+            resolveCompletedStatus: jest.fn(
+                () => $billingScheduler.runStatus.COMPLETED,
+            ),
             classifyItemFailure: jest.fn(),
             resolveSafeRunFailure: jest.fn(() => ({
-                code: 'SCHEDULER_RUN_FAILED',
+                code: $billingScheduler.errorCode.RUN_FAILED,
                 message: 'Billing run failed unexpectedly',
             })),
             resolveInterruptedItemFailure: jest.fn(),
@@ -156,16 +158,16 @@ describe('BillingSchedulerService', () => {
 
         expect(createRunOrThrow).toHaveBeenCalledWith(
             expect.objectContaining({
-                status: SchedulerRunStatus.SkippedLockUnavailable,
-                trigger_type: 'scheduled',
+                status: $billingScheduler.runStatus.SKIPPED_LOCK_UNAVAILABLE,
+                trigger_type: $billingScheduler.triggerType.SCHEDULED,
                 cutoff_date: '2026-08-18',
             }),
         );
         expect(releaseLease).not.toHaveBeenCalled();
         expect(info).toHaveBeenCalledWith(
-            'billing.run.skipped',
+            $billingScheduler.logEvent.RUN_SKIPPED,
             expect.objectContaining({
-                result: SchedulerRunStatus.SkippedLockUnavailable,
+                result: $billingScheduler.runStatus.SKIPPED_LOCK_UNAVAILABLE,
             }),
         );
     });
@@ -192,7 +194,9 @@ describe('BillingSchedulerService', () => {
         expect(finalizeRunOrThrow).toHaveBeenCalledWith(
             expect.any(String),
             request.ownerToken,
-            expect.objectContaining({ status: SchedulerRunStatus.Completed }),
+            expect.objectContaining({
+                status: $billingScheduler.runStatus.COMPLETED,
+            }),
         );
         expect(stop).toHaveBeenCalled();
         expect(releaseLease).toHaveBeenCalledWith(

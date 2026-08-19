@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
-import { DATABASE, type DatabaseClient } from '../../database/database.module';
+import { $database } from '../../database/database.constant';
+import type { DatabaseClient } from '../../database/database.module';
+import { $subscription } from '../subscriptions/subscriptions.constant';
+import { $billingScheduler } from './billing-scheduler.constant';
 import {
     SchedulerRunNotFoundException,
     SchedulerRunStateConflictException,
@@ -24,7 +27,10 @@ import type {
 
 @Injectable()
 export class BillingSchedulerRepository {
-    constructor(@Inject(DATABASE) private readonly database: DatabaseClient) {}
+    constructor(
+        @Inject($database.token.CLIENT)
+        private readonly database: DatabaseClient,
+    ) {}
 
     /** Acquires an absent or expired scheduler lease atomically. */
     acquireLease(
@@ -89,7 +95,7 @@ export class BillingSchedulerRepository {
             .set({ last_heartbeat_at: heartbeatAt })
             .where('id', '=', runId)
             .where('lease_owner_token', '=', ownerToken)
-            .where('status', '=', 'running')
+            .where('status', '=', $billingScheduler.runStatus.RUNNING)
             .returning('id')
             .executeTakeFirst();
 
@@ -125,8 +131,11 @@ export class BillingSchedulerRepository {
             transaction
                 .selectFrom('subscriptions')
                 .selectAll()
-                .where('status', '=', 'active')
-                .where('billing_state', 'in', ['ready', 'retry_wait'])
+                .where('status', '=', $subscription.status.ACTIVE)
+                .where('billing_state', 'in', [
+                    $subscription.billingState.READY,
+                    $subscription.billingState.RETRY_WAIT,
+                ])
                 .where('next_billing_date', '<=', query.cutoffDate)
                 .where((eb) =>
                     eb.or([
@@ -151,8 +160,11 @@ export class BillingSchedulerRepository {
             const candidates = await transaction
                 .selectFrom('subscriptions')
                 .selectAll()
-                .where('status', '=', 'active')
-                .where('billing_state', 'in', ['ready', 'retry_wait'])
+                .where('status', '=', $subscription.status.ACTIVE)
+                .where('billing_state', 'in', [
+                    $subscription.billingState.READY,
+                    $subscription.billingState.RETRY_WAIT,
+                ])
                 .where('next_billing_date', '<=', query.cutoffDate)
                 .where((eb) =>
                     eb.or([
@@ -223,8 +235,9 @@ export class BillingSchedulerRepository {
     ): Promise<SchedulerRunItemRecord | undefined> {
         return this.database.transaction().execute(async (transaction) => {
             if (
-                request.failure.type !== 'transient' &&
-                request.failure.type !== 'permanent'
+                request.failure.type !==
+                    $billingScheduler.failureType.TRANSIENT &&
+                request.failure.type !== $billingScheduler.failureType.PERMANENT
             ) {
                 return undefined;
             }
@@ -233,9 +246,10 @@ export class BillingSchedulerRepository {
                 .updateTable('subscriptions')
                 .set({
                     billing_state:
-                        request.failure.type === 'transient'
-                            ? 'retry_wait'
-                            : 'blocked',
+                        request.failure.type ===
+                        $billingScheduler.failureType.TRANSIENT
+                            ? $subscription.billingState.RETRY_WAIT
+                            : $subscription.billingState.BLOCKED,
                     billing_failure_count: request.failure.failureCount,
                     billing_retry_at: request.failure.retryAt,
                     last_billing_error_code: request.failure.code,
@@ -260,7 +274,7 @@ export class BillingSchedulerRepository {
                     id: randomUUID(),
                     run_id: request.runId,
                     subscription_id: request.subscriptionId,
-                    result: 'failed',
+                    result: $billingScheduler.runItemResult.FAILED,
                     before_billing_date: request.beforeBillingDate,
                     after_billing_date: subscription.next_billing_date,
                     invoices_created: 0,
@@ -295,14 +309,14 @@ export class BillingSchedulerRepository {
         return this.database
             .updateTable('scheduler_runs')
             .set({
-                status: 'abandoned',
+                status: $billingScheduler.runStatus.ABANDONED,
                 completed_at: abandonedAt,
-                error_code: 'SCHEDULER_RUN_ABANDONED',
+                error_code: $billingScheduler.errorCode.RUN_ABANDONED,
                 error_message:
                     'Scheduler run heartbeat expired before completion',
             })
             .where('job_name', '=', jobName)
-            .where('status', '=', 'running')
+            .where('status', '=', $billingScheduler.runStatus.RUNNING)
             .where((eb) =>
                 eb.or([
                     eb('last_heartbeat_at', '<=', staleBefore),
@@ -351,7 +365,7 @@ export class BillingSchedulerRepository {
             })
             .where('id', '=', runId)
             .where('lease_owner_token', '=', ownerToken)
-            .where('status', '=', 'running')
+            .where('status', '=', $billingScheduler.runStatus.RUNNING)
             .returningAll()
             .executeTakeFirst();
     }

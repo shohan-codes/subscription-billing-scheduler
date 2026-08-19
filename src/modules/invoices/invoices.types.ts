@@ -1,5 +1,6 @@
 import type { Insertable, Selectable } from 'kysely';
 import type { CursorPage } from '../../common/dto/cursor-pagination.dto';
+import type { InvoiceGenerationOutcome } from './invoices.constant';
 import type {
     InvoiceItemsTable,
     InvoicesTable,
@@ -52,13 +53,13 @@ export type InvoiceGenerationDraft = {
 };
 
 export type InvoiceGenerationResult = {
-    result: 'created' | 'duplicate_confirmed';
+    result: InvoiceGenerationOutcome;
     invoice: InvoiceRecord;
     nextBillingDate: string;
 };
 
 export type InvoiceCatchUpResult = {
-    result: 'created' | 'duplicate_confirmed';
+    result: InvoiceGenerationOutcome;
     invoices: InvoiceRecord[];
     nextBillingDate: string;
     periodsProcessed: number;

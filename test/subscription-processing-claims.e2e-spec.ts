@@ -2,8 +2,9 @@ import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
-import { DATABASE, type DatabaseClient } from '../src/database/database.module';
-import { BILLING_SCHEDULER_JOB_NAME } from '../src/modules/billing-scheduler/billing-scheduler.constant';
+import { $database } from '../src/database/database.constant';
+import type { DatabaseClient } from '../src/database/database.module';
+import { $billingScheduler } from '../src/modules/billing-scheduler/billing-scheduler.constant';
 import { BillingSchedulerRepository } from '../src/modules/billing-scheduler/billing-scheduler.repository';
 import { InvoicesRepository } from '../src/modules/invoices/invoices.repository';
 
@@ -22,7 +23,7 @@ describe('Subscription processing claims (e2e)', () => {
         }).compile();
         app = moduleFixture.createNestApplication();
         await app.init();
-        database = app.get<DatabaseClient>(DATABASE);
+        database = app.get<DatabaseClient>($database.token.CLIENT);
         repository = app.get(BillingSchedulerRepository);
         invoicesRepository = app.get(InvoicesRepository);
     });
@@ -138,11 +139,11 @@ async function createRun(
         .insertInto('scheduler_runs')
         .values({
             id,
-            job_name: BILLING_SCHEDULER_JOB_NAME,
-            trigger_type: 'manual',
+            job_name: $billingScheduler.job.NAME,
+            trigger_type: $billingScheduler.triggerType.MANUAL,
             triggered_at: now,
             cutoff_date: '2026-08-18',
-            status: 'running',
+            status: $billingScheduler.runStatus.RUNNING,
             instance_id: 'claim-test-instance',
             lease_owner_token: randomUUID(),
             started_at: now,

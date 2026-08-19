@@ -1,4 +1,5 @@
 import { SubscriptionsAction } from '../subscriptions.action';
+import { $subscription } from '../subscriptions.constant';
 import type {
     CreateSubscriptionRequest,
     UpdateSubscriptionRequest,
@@ -33,8 +34,8 @@ const currentSubscription = (): SubscriptionRecord => ({
     id: '81849854-7497-4ea4-a097-7aebf39f97f7',
     customer_reference: 'CUST-1001',
     description: 'Pro Plan - Monthly',
-    status: 'active',
-    billing_state: 'ready',
+    status: $subscription.status.ACTIVE,
+    billing_state: $subscription.billingState.READY,
     currency: 'USD',
     amount: '49.0000',
     start_date: '2026-08-16',
@@ -165,7 +166,7 @@ describe('SubscriptionsAction', () => {
         expect(
             action.resolveResumeStatusOrThrow({
                 ...currentSubscription(),
-                status: 'paused',
+                status: $subscription.status.PAUSED,
             }),
         ).toBe('active');
         expect(action.resolveCancelStatusOrThrow(currentSubscription())).toBe(
@@ -174,7 +175,7 @@ describe('SubscriptionsAction', () => {
         expect(
             action.resolveCancelStatusOrThrow({
                 ...currentSubscription(),
-                status: 'paused',
+                status: $subscription.status.PAUSED,
             }),
         ).toBe('canceled');
     });
@@ -183,7 +184,7 @@ describe('SubscriptionsAction', () => {
         expect(() =>
             action.resolvePauseStatusOrThrow({
                 ...currentSubscription(),
-                status: 'paused',
+                status: $subscription.status.PAUSED,
             }),
         ).toThrow(SubscriptionStateConflictException);
         expect(() =>
@@ -192,7 +193,7 @@ describe('SubscriptionsAction', () => {
         expect(() =>
             action.resolveCancelStatusOrThrow({
                 ...currentSubscription(),
-                status: 'canceled',
+                status: $subscription.status.CANCELED,
             }),
         ).toThrow(SubscriptionStateConflictException);
     });
@@ -202,7 +203,7 @@ describe('SubscriptionsAction', () => {
             action.validateBillingRetryOrThrow(
                 {
                     ...currentSubscription(),
-                    billing_state: 'retry_wait',
+                    billing_state: $subscription.billingState.RETRY_WAIT,
                 },
                 {},
             ),
@@ -211,7 +212,7 @@ describe('SubscriptionsAction', () => {
             action.validateBillingRetryOrThrow(
                 {
                     ...currentSubscription(),
-                    billing_state: 'blocked',
+                    billing_state: $subscription.billingState.BLOCKED,
                 },
                 { unblock: true },
             ),
@@ -223,7 +224,7 @@ describe('SubscriptionsAction', () => {
             action.validateBillingRetryOrThrow(
                 {
                     ...currentSubscription(),
-                    billing_state: 'blocked',
+                    billing_state: $subscription.billingState.BLOCKED,
                 },
                 {},
             ),
@@ -238,8 +239,8 @@ describe('SubscriptionsAction', () => {
             action.validateBillingRetryOrThrow(
                 {
                     ...currentSubscription(),
-                    status: 'canceled',
-                    billing_state: 'blocked',
+                    status: $subscription.status.CANCELED,
+                    billing_state: $subscription.billingState.BLOCKED,
                 },
                 { unblock: true },
             ),
@@ -306,7 +307,10 @@ describe('SubscriptionsAction', () => {
     it('rejects a schedule update for a canceled subscription', () => {
         expect(() =>
             action.validateUpdateOrThrow(
-                { ...currentSubscription(), status: 'canceled' },
+                {
+                    ...currentSubscription(),
+                    status: $subscription.status.CANCELED,
+                },
                 { nextBillingDate: '2026-09-30', version: 1 },
                 new Date('2026-08-18T00:00:00.000Z'),
             ),

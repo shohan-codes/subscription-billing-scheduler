@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type { Server } from 'node:http';
+import { $subscription } from '../src/modules/subscriptions/subscriptions.constant';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { DATABASE, type DatabaseClient } from '../src/database/database.module';
+import { $database } from '../src/database/database.constant';
+import type { DatabaseClient } from '../src/database/database.module';
 
 type SubscriptionDetailsBody = {
     data: {
@@ -64,7 +66,7 @@ describe('Subscription retrieval and listing (e2e)', () => {
         app.setGlobalPrefix('api/v1');
         await app.init();
 
-        database = app.get<DatabaseClient>(DATABASE);
+        database = app.get<DatabaseClient>($database.token.CLIENT);
     });
 
     afterAll(async () => {
@@ -90,7 +92,7 @@ describe('Subscription retrieval and listing (e2e)', () => {
         await database
             .updateTable('subscriptions')
             .set({
-                billing_state: 'retry_wait',
+                billing_state: $subscription.billingState.RETRY_WAIT,
                 billing_failure_count: 2,
                 billing_retry_at: '2026-09-01T08:00:00.000Z',
                 last_billing_error_code: 'PAYMENT_TEMPORARY_FAILURE',
@@ -199,7 +201,10 @@ describe('Subscription retrieval and listing (e2e)', () => {
 
         await database
             .updateTable('subscriptions')
-            .set({ status: 'paused', billing_state: 'retry_wait' })
+            .set({
+                status: $subscription.status.PAUSED,
+                billing_state: $subscription.billingState.RETRY_WAIT,
+            })
             .where('customer_reference', '=', customerReference)
             .execute();
 

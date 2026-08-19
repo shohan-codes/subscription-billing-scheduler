@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { sql, type Transaction } from 'kysely';
-import { DATABASE, type DatabaseClient } from '../../database/database.module';
+import { $database } from '../../database/database.constant';
+import type { DatabaseClient } from '../../database/database.module';
+import { $subscription } from '../subscriptions/subscriptions.constant';
 import type { DatabaseSchema } from '../../database/database.types';
 import type { SubscriptionRecord } from '../subscriptions/subscriptions.types';
 import {
@@ -19,7 +21,10 @@ import type {
 
 @Injectable()
 export class InvoicesRepository {
-    constructor(@Inject(DATABASE) private readonly database: DatabaseClient) {}
+    constructor(
+        @Inject($database.token.CLIENT)
+        private readonly database: DatabaseClient,
+    ) {}
 
     /** Runs invoice persistence work inside one Kysely transaction. */
     withTransaction<T>(
@@ -213,7 +218,7 @@ export class InvoiceTransactionRepository {
             .updateTable('subscriptions')
             .set({
                 next_billing_date: nextBillingDate,
-                billing_state: 'ready',
+                billing_state: $subscription.billingState.READY,
                 billing_failure_count: 0,
                 billing_retry_at: null,
                 last_billing_error_code: null,

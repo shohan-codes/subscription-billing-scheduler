@@ -20,12 +20,12 @@ describe('AppConfigService', () => {
             new ConfigService<EnvironmentVariables, true>(values),
         );
 
-        expect(appConfig.app.port).toBe(4000);
-        expect(appConfig.database.poolMax).toBe(20);
-        expect(appConfig.billing.batchSize).toBe(250);
-        expect(appConfig.billing.timezone).toBe('Asia/Dhaka');
-        expect(appConfig.operator.id).toBe('operator-1');
-        expect(appConfig.operator.token).toBe(
+        expect(appConfig.app.PORT).toBe(4000);
+        expect(appConfig.database.POOL_MAX).toBe(20);
+        expect(appConfig.billing.BATCH_SIZE).toBe(250);
+        expect(appConfig.billing.TIMEZONE).toBe('Asia/Dhaka');
+        expect(appConfig.operator.ID).toBe('operator-1');
+        expect(appConfig.operator.TOKEN).toBe(
             '0123456789abcdef0123456789abcdef',
         );
     });

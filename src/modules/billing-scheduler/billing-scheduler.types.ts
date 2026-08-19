@@ -7,6 +7,7 @@ import type {
     SubscriptionsTable,
 } from '../../database/database.types';
 import type {
+    BillingItemFailureType,
     SchedulerRunItemResult,
     SchedulerRunStatus,
     SchedulerTriggerType,
@@ -44,9 +45,6 @@ export interface SchedulerHeartbeatContext {
     ownerToken: string;
     runId?: string;
 }
-
-export type BillingItemFailureType =
-    'transient' | 'permanent' | 'lease_lost' | 'shutdown_interrupted';
 
 export interface BillingItemFailure {
     type: BillingItemFailureType;

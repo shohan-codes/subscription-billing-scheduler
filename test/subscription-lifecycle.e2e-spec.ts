@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type { Server } from 'node:http';
+import { $subscription } from '../src/modules/subscriptions/subscriptions.constant';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { DATABASE, type DatabaseClient } from '../src/database/database.module';
+import { $database } from '../src/database/database.constant';
+import type { DatabaseClient } from '../src/database/database.module';
 
 type SubscriptionBody = {
     data: {
@@ -48,7 +50,7 @@ describe('Subscription lifecycle (e2e)', () => {
         app.setGlobalPrefix('api/v1');
         await app.init();
 
-        database = app.get<DatabaseClient>(DATABASE);
+        database = app.get<DatabaseClient>($database.token.CLIENT);
     });
 
     afterAll(async () => {
@@ -85,7 +87,7 @@ describe('Subscription lifecycle (e2e)', () => {
 
         await database
             .updateTable('subscriptions')
-            .set({ status: 'paused' })
+            .set({ status: $subscription.status.PAUSED })
             .where('id', '=', created.id)
             .executeTakeFirstOrThrow();
 
@@ -108,7 +110,7 @@ describe('Subscription lifecycle (e2e)', () => {
 
         await database
             .updateTable('subscriptions')
-            .set({ status: 'paused' })
+            .set({ status: $subscription.status.PAUSED })
             .where('id', '=', paused.id)
             .executeTakeFirstOrThrow();
 

@@ -1,7 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-
-const MAX_CURSOR_LENGTH = 512;
-const BASE64URL = /^[A-Za-z0-9_-]+$/;
+import { $common } from '../common.constant';
 
 export type CursorPayload = Record<string, string | number | boolean | null>;
 export type CursorPayloadGuard<TPayload extends CursorPayload> = (
@@ -14,10 +12,10 @@ export class CursorCodec {
     /** Encodes a payload as an opaque base64url cursor. */
     encode(payload: CursorPayload): string {
         const cursor = Buffer.from(JSON.stringify(payload)).toString(
-            'base64url',
+            $common.cursor.ENCODING,
         );
 
-        if (cursor.length > MAX_CURSOR_LENGTH) {
+        if (cursor.length > $common.cursor.MAX_LENGTH) {
             throw new Error('Cursor payload is too large');
         }
 
@@ -35,13 +33,20 @@ export class CursorCodec {
         guard?: CursorPayloadGuard<TPayload>,
     ): Record<string, unknown> | TPayload {
         try {
-            if (cursor.length > MAX_CURSOR_LENGTH || !BASE64URL.test(cursor)) {
+            if (
+                cursor.length > $common.cursor.MAX_LENGTH ||
+                !$common.cursor.BASE64_URL_PATTERN.test(cursor)
+            ) {
                 throw new Error('Malformed cursor');
             }
 
-            const json = Buffer.from(cursor, 'base64url').toString('utf8');
+            const json = Buffer.from(cursor, $common.cursor.ENCODING).toString(
+                'utf8',
+            );
 
-            if (Buffer.from(json).toString('base64url') !== cursor) {
+            if (
+                Buffer.from(json).toString($common.cursor.ENCODING) !== cursor
+            ) {
                 throw new Error('Malformed cursor');
             }
 
@@ -54,7 +59,7 @@ export class CursorCodec {
             return payload;
         } catch {
             throw new BadRequestException({
-                code: 'INVALID_CURSOR',
+                code: $common.cursor.errorCode.INVALID,
                 message: 'Pagination cursor is invalid',
             });
         }

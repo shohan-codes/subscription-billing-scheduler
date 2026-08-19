@@ -1,5 +1,6 @@
 import { ApiResponseField } from '../decorators/api-response-field.decorator';
 import { ResponseDto } from '../dto/response.dto';
+import { $subscription } from '../../modules/subscriptions/subscriptions.constant';
 
 type SubscriptionRow = {
     id: string;
@@ -46,7 +47,7 @@ describe('ResponseDto', () => {
     const source: SubscriptionRow = {
         id: '550e8400-e29b-41d4-a716-446655440000',
         customer_reference: 'CUST-1001',
-        status: 'active',
+        status: $subscription.status.ACTIVE,
         amount: '49.0000',
         currency: 'USD',
         processing_owner: 'instance-1',

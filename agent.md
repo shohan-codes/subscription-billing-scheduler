@@ -127,13 +127,17 @@ src/modules/<feature>/
 - `Files`: Do not create a separate file for every small exception.
 - `Naming`: Use the `Exception` suffix for classes extending NestJS HTTP exceptions, for example `SubscriptionNotFoundException`.
 
-### <feature>.constant.ts : keep feature constants together
+### Constants : keep values scoped, nested, and predictable
 
-- `Ownership`: Keep constants owned only by the feature in `<feature>.constant.ts`.
-- `Creation`: Create this file only when the feature actually has constants.
-- `Location`: Do not keep feature-specific constants in generic common or shared files.
-- `Exports`: Export only constants that are used outside this file.
-- `Configuration`: Keep configuration values in the configuration layer, not in `<feature>.constant.ts`.
+- `Feature ownership`: Keep module-owned constants in `<feature>.constant.ts` under one uppercase root such as `SUBSCRIPTION`, `INVOICE`, or `BILLING_SCHEDULER`.
+- `Database ownership`: Keep database-owned constants, persisted enum-like values, database tokens, and database-specific limits in `src/database/database.constant.ts` under `DATABASE`.
+- `Global ownership`: Keep truly shared application constants in `src/common/common.constant.ts` under `COMMON`.
+- `Naming`: Use uppercase snake case for constant roots, scopes, and leaf keys, for example `BILLING_SCHEDULER.ERROR_CODE.LEASE_LOST`.
+- `Nesting`: Prefer predictable `MODULE.SCOPE.NAME` access over unrelated flat constants.
+- `Enum-like values`: Prefer nested `as const` objects with derived TypeScript union types instead of native TypeScript enums.
+- `Reuse`: Reference the owning constant instead of repeating persisted statuses, result values, error codes, log events, or meaningful magic values.
+- `Boundaries`: Do not extract one-off human-readable messages, query operators, table/column names, route paths, OpenAPI examples, or historical migration literals only to remove string literals.
+- `Configuration`: Keep environment-dependent configuration values in the configuration layer rather than feature constants.
 
 ### <feature>.types.ts : keep feature-internal types together
 

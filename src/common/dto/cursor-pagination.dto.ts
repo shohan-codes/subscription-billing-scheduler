@@ -8,12 +8,9 @@ import {
     Min,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { $common } from '../common.constant';
 import { ApiResponseField } from '../decorators/api-response-field.decorator';
 import { ResponseDto } from './response.dto';
-
-const DEFAULT_PAGE_LIMIT = 50;
-const MAX_PAGE_LIMIT = 100;
-const MAX_CURSOR_LENGTH = 512;
 
 export type CursorPaginationMeta = {
     nextCursor: string | null;
@@ -33,20 +30,20 @@ export class CursorPaginationRequest {
     })
     @IsOptional()
     @IsString()
-    @MaxLength(MAX_CURSOR_LENGTH)
+    @MaxLength($common.cursor.MAX_LENGTH)
     cursor?: string;
 
     @ApiPropertyOptional({
-        default: DEFAULT_PAGE_LIMIT,
+        default: $common.cursor.page.DEFAULT_LIMIT,
         example: 50,
         minimum: 1,
-        maximum: MAX_PAGE_LIMIT,
+        maximum: $common.cursor.page.MAX_LIMIT,
     })
     @Type(() => Number)
     @IsInt()
     @Min(1)
-    @Max(MAX_PAGE_LIMIT)
-    limit = DEFAULT_PAGE_LIMIT;
+    @Max($common.cursor.page.MAX_LIMIT)
+    limit = $common.cursor.page.DEFAULT_LIMIT;
 }
 
 /** Describes cursor metadata returned by list endpoints. */

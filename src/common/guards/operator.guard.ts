@@ -8,9 +8,8 @@ import {
 } from '@nestjs/common';
 import { AppConfigService } from '../../config/app-config.service';
 import { AppLogger } from '../app-logger';
+import { $common } from '../common.constant';
 import { RequestContext } from '../request-context';
-
-const BEARER_PREFIX = 'Bearer ';
 
 /** Authorizes operator/admin requests and records the requesting actor. */
 @Injectable()
@@ -27,8 +26,8 @@ export class OperatorGuard implements CanActivate {
             .switchToHttp()
             .getRequest<IncomingMessage>();
         const token = bearerToken(request.headers.authorization);
-        const actorId = this.config.operator.id;
-        const expectedToken = this.config.operator.token;
+        const actorId = this.config.operator.ID;
+        const expectedToken = this.config.operator.TOKEN;
 
         if (
             !actorId ||
@@ -37,21 +36,25 @@ export class OperatorGuard implements CanActivate {
             !secureEqual(token, expectedToken)
         ) {
             throw new UnauthorizedException({
-                code: 'OPERATOR_AUTH_REQUIRED',
+                code: $common.operator.auth.ERROR_CODE,
                 message: 'Operator authorization is required',
             });
         }
 
         this.context.setActorId(actorId);
-        this.logger.info('operator_authorized');
+        this.logger.info($common.operator.auth.LOG_EVENT);
         return true;
     }
 }
 
 /** Extracts a bearer token from an Authorization header. */
 function bearerToken(authorization: string | undefined): string | undefined {
-    if (!authorization?.startsWith(BEARER_PREFIX)) return undefined;
-    const token = authorization.slice(BEARER_PREFIX.length).trim();
+    if (!authorization?.startsWith($common.operator.auth.BEARER_PREFIX)) {
+        return undefined;
+    }
+    const token = authorization
+        .slice($common.operator.auth.BEARER_PREFIX.length)
+        .trim();
     return token || undefined;
 }
 

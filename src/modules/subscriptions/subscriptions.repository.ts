@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
-import { DATABASE, type DatabaseClient } from '../../database/database.module';
+import { $database } from '../../database/database.constant';
+import type { DatabaseClient } from '../../database/database.module';
 import {
-    SubscriptionBillingState,
-    SubscriptionStatus,
+    $subscription,
+    type SubscriptionBillingState,
+    type SubscriptionStatus,
 } from './subscriptions.constant';
 import type {
     CreateSubscriptionRequest,
@@ -24,7 +26,10 @@ import type {
 
 @Injectable()
 export class SubscriptionsRepository {
-    constructor(@Inject(DATABASE) private readonly database: DatabaseClient) {}
+    constructor(
+        @Inject($database.token.CLIENT)
+        private readonly database: DatabaseClient,
+    ) {}
 
     /** Persists a new subscription and returns its stored state. */
     async createOrThrow(
@@ -36,8 +41,8 @@ export class SubscriptionsRepository {
                 id: randomUUID(),
                 customer_reference: request.customerReference,
                 description: request.description,
-                status: SubscriptionStatus.Active,
-                billing_state: SubscriptionBillingState.Ready,
+                status: $subscription.status.ACTIVE,
+                billing_state: $subscription.billingState.READY,
                 currency: request.currency,
                 amount: request.amount,
                 start_date: request.startDate,
@@ -173,7 +178,7 @@ export class SubscriptionsRepository {
         return this.database
             .updateTable('subscriptions')
             .set({
-                billing_state: SubscriptionBillingState.Ready,
+                billing_state: $subscription.billingState.READY,
                 billing_retry_at: null,
                 version: sql<number>`version + 1`,
             })
