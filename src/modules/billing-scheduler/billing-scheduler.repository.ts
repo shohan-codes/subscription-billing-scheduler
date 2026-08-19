@@ -298,7 +298,8 @@ export class BillingSchedulerRepository {
                 status: 'abandoned',
                 completed_at: abandonedAt,
                 error_code: 'SCHEDULER_RUN_ABANDONED',
-                error_message: 'Scheduler run heartbeat expired before completion',
+                error_message:
+                    'Scheduler run heartbeat expired before completion',
             })
             .where('job_name', '=', jobName)
             .where('status', '=', 'running')
