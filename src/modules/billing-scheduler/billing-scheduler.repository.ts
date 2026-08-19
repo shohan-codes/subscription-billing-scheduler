@@ -6,6 +6,8 @@ import {
     SchedulerRunStateConflictException,
 } from './billing-scheduler.errors';
 import type {
+    DueSubscriptionBatchQuery,
+    DueSubscriptionRecord,
     SchedulerLeaseRecord,
     SchedulerLeaseRequest,
     SchedulerRunFinalization,
@@ -109,6 +111,32 @@ export class BillingSchedulerRepository {
             .values(run)
             .returningAll()
             .executeTakeFirstOrThrow();
+    }
+
+    /** Selects one deterministic due batch while skipping rows locked by competing workers. */
+    findDueBatch(
+        query: DueSubscriptionBatchQuery,
+    ): Promise<DueSubscriptionRecord[]> {
+        return this.database.transaction().execute((transaction) =>
+            transaction
+                .selectFrom('subscriptions')
+                .selectAll()
+                .where('status', '=', 'active')
+                .where('billing_state', 'in', ['ready', 'retry_wait'])
+                .where('next_billing_date', '<=', query.cutoffDate)
+                .where((eb) =>
+                    eb.or([
+                        eb('billing_retry_at', 'is', null),
+                        eb('billing_retry_at', '<=', query.now),
+                    ]),
+                )
+                .orderBy('next_billing_date', 'asc')
+                .orderBy('id', 'asc')
+                .limit(query.limit)
+                .forUpdate()
+                .skipLocked()
+                .execute(),
+        );
     }
 
     /** Finalizes a running scheduler record or throws when ownership changed. */
