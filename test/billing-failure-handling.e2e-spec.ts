@@ -3,15 +3,9 @@ import type { INestApplication } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
 import { DATABASE, type DatabaseClient } from '../src/database/database.module';
-import {
-    BillingSchedulerAction,
-} from '../src/modules/billing-scheduler/billing-scheduler.action';
-import {
-    BILLING_SCHEDULER_JOB_NAME,
-} from '../src/modules/billing-scheduler/billing-scheduler.constant';
-import {
-    BillingSchedulerRepository,
-} from '../src/modules/billing-scheduler/billing-scheduler.repository';
+import { BillingSchedulerAction } from '../src/modules/billing-scheduler/billing-scheduler.action';
+import { BILLING_SCHEDULER_JOB_NAME } from '../src/modules/billing-scheduler/billing-scheduler.constant';
+import { BillingSchedulerRepository } from '../src/modules/billing-scheduler/billing-scheduler.repository';
 
 const CUSTOMER_REFERENCE = `FAILURE-HANDLING-${randomUUID()}`;
 
@@ -188,9 +182,7 @@ describe('Billing failure handling (e2e)', () => {
                 processing_run_id: runId,
                 processing_owner: owner,
                 processing_started_at: now,
-                processing_expires_at: new Date(
-                    '2026-08-18T12:05:00.000Z',
-                ),
+                processing_expires_at: new Date('2026-08-18T12:05:00.000Z'),
             })
             .execute();
 

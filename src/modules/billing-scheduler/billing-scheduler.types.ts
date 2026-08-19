@@ -46,10 +46,7 @@ export interface SchedulerHeartbeatContext {
 }
 
 export type BillingItemFailureType =
-    | 'transient'
-    | 'permanent'
-    | 'lease_lost'
-    | 'shutdown_interrupted';
+    'transient' | 'permanent' | 'lease_lost' | 'shutdown_interrupted';
 
 export interface BillingItemFailure {
     type: BillingItemFailureType;

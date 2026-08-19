@@ -57,22 +57,17 @@ describe('BillingSchedulerAction', () => {
             0,
             now,
         );
-        const capped = action.classifyItemFailure(
-            { code: '40001' },
-            5,
-            now,
-        );
+        const capped = action.classifyItemFailure({ code: '40001' }, 5, now);
 
         expect(transient).toEqual({
             type: 'transient',
             code: 'DATABASE_TRANSIENT_FAILURE',
-            message: 'A temporary database error interrupted subscription billing',
+            message:
+                'A temporary database error interrupted subscription billing',
             failureCount: 1,
             retryAt: new Date('2026-08-18T10:01:00.000Z'),
         });
-        expect(capped.retryAt).toEqual(
-            new Date('2026-08-18T16:00:00.000Z'),
-        );
+        expect(capped.retryAt).toEqual(new Date('2026-08-18T16:00:00.000Z'));
         expect(transient.message).not.toContain('secret');
     });
 

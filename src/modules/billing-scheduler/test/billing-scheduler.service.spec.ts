@@ -6,6 +6,7 @@ import type { InvoicesService } from '../../invoices/invoices.service';
 import { SchedulerRunStatus } from '../billing-scheduler.constant';
 import type { BillingSchedulerHeartbeat } from '../billing-scheduler.heartbeat';
 import type { BillingSchedulerRepository } from '../billing-scheduler.repository';
+import { BillingSchedulerAction } from '../billing-scheduler.action';
 import { BillingSchedulerService } from '../billing-scheduler.service';
 import type {
     SchedulerLeaseRequest,
@@ -82,8 +83,10 @@ function createService(acquired: boolean, shuttingDown = false) {
                 code: 'SCHEDULER_RUN_FAILED',
                 message: 'Billing run failed unexpectedly',
             })),
+            resolveInterruptedItemFailure: jest.fn(),
+            resolveRetryAt: jest.fn(),
             validateManualRunOrThrow: jest.fn(),
-        },
+        } as unknown as BillingSchedulerAction,
         {
             acquireLease,
             claimDueBatch: jest.fn().mockResolvedValue([]),

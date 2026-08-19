@@ -83,7 +83,8 @@ export class BillingSchedulerAction {
             return {
                 type: 'transient',
                 code: 'DATABASE_TRANSIENT_FAILURE',
-                message: 'A temporary database error interrupted subscription billing',
+                message:
+                    'A temporary database error interrupted subscription billing',
                 failureCount,
                 retryAt: this.resolveRetryAt(now, failureCount),
             };
@@ -112,7 +113,8 @@ export class BillingSchedulerAction {
             : {
                   type: 'shutdown_interrupted',
                   code: 'SHUTDOWN_INTERRUPTED',
-                  message: 'Application shutdown interrupted subscription billing',
+                  message:
+                      'Application shutdown interrupted subscription billing',
                   failureCount: currentFailureCount,
                   retryAt: null,
               };
@@ -121,7 +123,10 @@ export class BillingSchedulerAction {
     /** Calculates the capped retry timestamp for the consecutive transient failure count. */
     resolveRetryAt(now: Date, failureCount: number): Date {
         const delays = [60, 300, 900, 3600, 21_600] as const;
-        const index = Math.min(Math.max(failureCount - 1, 0), delays.length - 1);
+        const index = Math.min(
+            Math.max(failureCount - 1, 0),
+            delays.length - 1,
+        );
         return new Date(now.getTime() + delays[index] * 1000);
     }
 
