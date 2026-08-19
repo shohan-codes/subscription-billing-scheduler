@@ -5,6 +5,7 @@ import type { AppConfigService } from '../../../config/app-config.service';
 import type { InvoicesService } from '../../invoices/invoices.service';
 import { $billingScheduler } from '../billing-scheduler.constant';
 import type { BillingSchedulerHeartbeat } from '../billing-scheduler.heartbeat';
+import type { BillingSchedulerMetrics } from '../billing-scheduler.metrics';
 import type { BillingSchedulerRepository } from '../billing-scheduler.repository';
 import { BillingSchedulerAction } from '../billing-scheduler.action';
 import { BillingSchedulerService } from '../billing-scheduler.service';
@@ -44,7 +45,19 @@ function createService(acquired: boolean, shuttingDown = false) {
         );
     const finalizeRunOrThrow = jest.fn().mockResolvedValue({
         id: 'run-a',
+        trigger_type: $billingScheduler.triggerType.SCHEDULED,
+        triggered_at: triggeredAt,
+        cutoff_date: '2026-08-18',
         status: $billingScheduler.runStatus.COMPLETED,
+        started_at: triggeredAt,
+        completed_at: triggeredAt,
+        eligible_count: 0,
+        claimed_count: 0,
+        succeeded_count: 0,
+        failed_count: 0,
+        skipped_count: 0,
+        invoices_created_count: 0,
+        error_code: null,
     });
     const releaseLease = jest.fn().mockResolvedValue(true);
     const start = jest.fn();
@@ -53,15 +66,15 @@ function createService(acquired: boolean, shuttingDown = false) {
     const info = jest.fn();
     const service = new BillingSchedulerService(
         {
-            app: { instanceId: 'instance-a' },
+            app: { INSTANCE_ID: 'instance-a' },
             billing: {
-                leaseSeconds: 120,
-                timezone: 'UTC',
-                batchSize: 100,
-                claimSeconds: 300,
-                maxRunSeconds: 1800,
-                maxItemsPerRun: 100_000,
-                maxCatchUpPeriods: 12,
+                LEASE_SECONDS: 120,
+                TIMEZONE: 'UTC',
+                BATCH_SIZE: 100,
+                CLAIM_SECONDS: 300,
+                MAX_RUN_SECONDS: 1800,
+                MAX_ITEMS_PER_RUN: 100_000,
+                MAX_CATCH_UP_PERIODS: 12,
             },
         } as unknown as AppConfigService,
         {
@@ -99,7 +112,11 @@ function createService(acquired: boolean, shuttingDown = false) {
         } as unknown as BillingSchedulerAction,
         {
             acquireLease,
-            claimDueBatch: jest.fn().mockResolvedValue([]),
+            claimDueBatchWithStats: jest.fn().mockResolvedValue({
+                subscriptions: [],
+                expiredClaimCount: 0,
+            }),
+            countDueSubscriptions: jest.fn().mockResolvedValue([]),
             abandonStaleRuns: jest.fn().mockResolvedValue([]),
             createRunOrThrow,
             finalizeRunOrThrow,
@@ -118,6 +135,15 @@ function createService(acquired: boolean, shuttingDown = false) {
             warn: jest.fn(),
             error: jest.fn(),
         } as unknown as AppLogger,
+        {
+            recordRun: jest.fn(),
+            recordItem: jest.fn(),
+            recordInvoices: jest.fn(),
+            recordDueCounts: jest.fn(),
+            recordExpiredClaims: jest.fn(),
+            recordLeaseContention: jest.fn(),
+            recordScheduleLag: jest.fn(),
+        } as unknown as BillingSchedulerMetrics,
     );
 
     return {

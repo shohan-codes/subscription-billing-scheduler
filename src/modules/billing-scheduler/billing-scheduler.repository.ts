@@ -10,6 +10,7 @@ import {
     SchedulerRunStateConflictException,
 } from './billing-scheduler.errors';
 import type {
+    BillingDueCount,
     DueSubscriptionBatchQuery,
     DueSubscriptionRecord,
     SchedulerLeaseRecord,
@@ -23,6 +24,7 @@ import type {
     SchedulerRunListQuery,
     SchedulerRunRecord,
     SubscriptionBatchClaimQuery,
+    SubscriptionBatchClaimResult,
 } from './billing-scheduler.types';
 
 @Injectable()
@@ -153,9 +155,17 @@ export class BillingSchedulerRepository {
     }
 
     /** Claims one deterministic due batch and persists processing ownership atomically. */
-    claimDueBatch(
+    async claimDueBatch(
         query: SubscriptionBatchClaimQuery,
     ): Promise<DueSubscriptionRecord[]> {
+        const result = await this.claimDueBatchWithStats(query);
+        return result.subscriptions;
+    }
+
+    /** Claims one due batch and reports how many expired claims were reclaimed. */
+    claimDueBatchWithStats(
+        query: SubscriptionBatchClaimQuery,
+    ): Promise<SubscriptionBatchClaimResult> {
         return this.database.transaction().execute(async (transaction) => {
             const candidates = await transaction
                 .selectFrom('subscriptions')
@@ -201,8 +211,17 @@ export class BillingSchedulerRepository {
                 .skipLocked()
                 .execute();
 
-            if (candidates.length === 0) return [];
+            if (candidates.length === 0) {
+                return { subscriptions: [], expiredClaimCount: 0 };
+            }
 
+            const expiredClaimCount = candidates.filter(
+                (candidate) =>
+                    candidate.processing_run_id !== null &&
+                    candidate.processing_expires_at !== null &&
+                    candidate.processing_expires_at.getTime() <=
+                        query.now.getTime(),
+            ).length;
             const claimed = await transaction
                 .updateTable('subscriptions')
                 .set({
@@ -221,12 +240,42 @@ export class BillingSchedulerRepository {
             const claimedById = new Map(
                 claimed.map((subscription) => [subscription.id, subscription]),
             );
-
-            return candidates.flatMap((candidate) => {
+            const subscriptions = candidates.flatMap((candidate) => {
                 const subscription = claimedById.get(candidate.id);
                 return subscription ? [subscription] : [];
             });
+
+            return { subscriptions, expiredClaimCount };
         });
+    }
+
+    /** Counts currently due subscriptions by billing state for observability. */
+    async countDueSubscriptions(
+        cutoffDate: string,
+        now: Date,
+    ): Promise<BillingDueCount[]> {
+        const rows = await this.database
+            .selectFrom('subscriptions')
+            .select(['billing_state', sql<number>`count(*)::int`.as('count')])
+            .where('status', '=', $subscription.status.ACTIVE)
+            .where('billing_state', 'in', [
+                $subscription.billingState.READY,
+                $subscription.billingState.RETRY_WAIT,
+            ])
+            .where('next_billing_date', '<=', cutoffDate)
+            .where((eb) =>
+                eb.or([
+                    eb('billing_retry_at', 'is', null),
+                    eb('billing_retry_at', '<=', now),
+                ]),
+            )
+            .groupBy('billing_state')
+            .execute();
+
+        return rows.map((row) => ({
+            billingState: row.billing_state,
+            count: Number(row.count),
+        }));
     }
 
     /** Persists an item failure and clears the claim or returns undefined after ownership loss. */

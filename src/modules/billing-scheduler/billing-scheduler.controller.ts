@@ -1,6 +1,7 @@
 import {
     Controller,
     Get,
+    Header,
     HttpCode,
     HttpStatus,
     Param,
@@ -19,6 +20,7 @@ import {
     ListBillingRunsResponse,
     TriggerBillingRunResponse,
 } from './billing-scheduler.dto';
+import { BillingSchedulerMetrics } from './billing-scheduler.metrics';
 import { BillingSchedulerService } from './billing-scheduler.service';
 
 @Controller('operations/billing-runs')
@@ -80,5 +82,26 @@ export class BillingSchedulerController {
         @Query() request: ListBillingRunItemsRequest,
     ): Promise<ListBillingRunItemsResponse> {
         return this.service.listRunItems(path.id, request);
+    }
+}
+
+@Controller()
+export class BillingMetricsController {
+    constructor(private readonly metrics: BillingSchedulerMetrics) {}
+
+    /** Exposes bounded billing metrics in Prometheus text format. */
+    @Get('metrics')
+    @Header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8')
+    @ApiRoute({
+        summary: 'Get billing metrics',
+        auth: false,
+        envelope: false,
+        dataSchema: {
+            type: 'string',
+            example: '# TYPE billing_run_total counter',
+        },
+    })
+    metricsText(): string {
+        return this.metrics.render();
     }
 }

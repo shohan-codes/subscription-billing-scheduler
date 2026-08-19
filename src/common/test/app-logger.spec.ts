@@ -20,11 +20,15 @@ describe('AppLogger', () => {
         logger.info('billing.run.started', {
             runId: 'run-1',
             ownerToken: 'do-not-log',
+            databaseUrl: 'postgresql://secret@localhost/db',
+            authorization: 'Bearer secret',
         });
 
         expect(output).toHaveBeenCalledWith({
             runId: 'run-1',
             ownerToken: '[REDACTED]',
+            databaseUrl: '[REDACTED]',
+            authorization: '[REDACTED]',
             timestamp: '2026-08-17T04:00:00.000Z',
             level: 'info',
             event: 'billing.run.started',

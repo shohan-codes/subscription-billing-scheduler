@@ -64,5 +64,6 @@ export type InvoiceCatchUpResult = {
     nextBillingDate: string;
     periodsProcessed: number;
     invoicesCreated: number;
+    createdCurrencies: string[];
     limitReached: boolean;
 };
