@@ -470,14 +470,16 @@ export class BillingSchedulerService implements BeforeApplicationShutdown {
                         completedAt: this.clock.now(),
                         counters,
                         errorCode:
-                            stopReason === SchedulerProcessingStopReason.LeaseLost
+                            stopReason ===
+                            SchedulerProcessingStopReason.LeaseLost
                                 ? 'SCHEDULER_LEASE_LOST'
                                 : stopReason ===
                                     SchedulerProcessingStopReason.RunLimitReached
                                   ? 'RUN_LIMIT_REACHED'
                                   : 'SHUTDOWN_INTERRUPTED',
                         errorMessage:
-                            stopReason === SchedulerProcessingStopReason.LeaseLost
+                            stopReason ===
+                            SchedulerProcessingStopReason.LeaseLost
                                 ? 'Scheduler lease ownership was lost'
                                 : stopReason ===
                                     SchedulerProcessingStopReason.RunLimitReached

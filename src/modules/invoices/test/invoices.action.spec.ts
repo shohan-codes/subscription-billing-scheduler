@@ -222,5 +222,4 @@ describe('InvoicesAction', () => {
             action.isCatchUpLimitReached('2026-07-31', '2026-07-31', 2, 2),
         ).toBe(true);
     });
-
 });

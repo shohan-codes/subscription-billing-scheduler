@@ -156,10 +156,7 @@ export class BillingSchedulerAction {
         claimedCount: number,
         maxItemsPerRun: number,
     ): number {
-        return Math.max(
-            0,
-            Math.min(batchSize, maxItemsPerRun - claimedCount),
-        );
+        return Math.max(0, Math.min(batchSize, maxItemsPerRun - claimedCount));
     }
 
     /** Detects whether the configured maximum scheduler run duration has elapsed. */

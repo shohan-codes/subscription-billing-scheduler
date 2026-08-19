@@ -88,10 +88,7 @@ export class InvoicesAction {
         periodsProcessed: number,
         maxPeriods: number,
     ): boolean {
-        return (
-            nextBillingDate <= cutoffDate &&
-            periodsProcessed < maxPeriods
-        );
+        return nextBillingDate <= cutoffDate && periodsProcessed < maxPeriods;
     }
 
     /** Detects when catch-up stopped at its per-subscription limit while work remains due. */
@@ -101,10 +98,7 @@ export class InvoicesAction {
         periodsProcessed: number,
         maxPeriods: number,
     ): boolean {
-        return (
-            nextBillingDate <= cutoffDate &&
-            periodsProcessed >= maxPeriods
-        );
+        return nextBillingDate <= cutoffDate && periodsProcessed >= maxPeriods;
     }
 
     /** Builds the baseline invoice, line-item snapshots, and following billing date. */
