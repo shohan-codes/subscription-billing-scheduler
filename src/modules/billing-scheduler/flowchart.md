@@ -85,18 +85,39 @@ flowchart TD
         direction TB
 
         SAVE_RUN["Persist running scheduler_runs row"]
+        RECOVER["Mark stale running attempts abandoned"]
         HEARTBEAT["Start lease and run heartbeat"]
-        WORK["Coordinator work boundary"]
-        INTERRUPTED{"Lease lost or shutdown started?"}
+        CLAIM_OWNER["Create processing claim owner"]
+        STOP_CHECK{"Lease lost, shutdown, or run limit reached?"}
+        CLAIM["Claim bounded due batch with FOR UPDATE SKIP LOCKED"]
+        BATCH_EMPTY{"Claimed batch empty?"}
+        ITEM["Process claimed subscription"]
+        CATCH_UP["Generate oldest due periods up to catch-up limit"]
+        ITEM_RESULT{"Item succeeds?"}
+        SUCCESS["Persist success or duplicate-confirmed item and clear owned claim"]
+        FAILURE["Classify failure, persist retry or blocked state, clear owned claim"]
+        MORE_ITEMS{"More claimed items?"}
         COMPLETE["Resolve completed status and counters"]
-        INTERRUPT["Finalize interrupted run"]
+        INTERRUPT["Finalize interrupted run with safe stop reason"]
         RELEASE["Release matching owner lease"]
 
-        SAVE_RUN --> HEARTBEAT
-        HEARTBEAT --> WORK
-        WORK --> INTERRUPTED
-        INTERRUPTED -- No --> COMPLETE
-        INTERRUPTED -- Yes --> INTERRUPT
+        SAVE_RUN --> RECOVER
+        RECOVER --> HEARTBEAT
+        HEARTBEAT --> CLAIM_OWNER
+        CLAIM_OWNER --> STOP_CHECK
+        STOP_CHECK -- Yes --> INTERRUPT
+        STOP_CHECK -- No --> CLAIM
+        CLAIM --> BATCH_EMPTY
+        BATCH_EMPTY -- Yes --> COMPLETE
+        BATCH_EMPTY -- No --> ITEM
+        ITEM --> CATCH_UP
+        CATCH_UP --> ITEM_RESULT
+        ITEM_RESULT -- Yes --> SUCCESS
+        ITEM_RESULT -- No --> FAILURE
+        SUCCESS --> MORE_ITEMS
+        FAILURE --> MORE_ITEMS
+        MORE_ITEMS -- Yes --> ITEM
+        MORE_ITEMS -- No --> STOP_CHECK
         COMPLETE --> RELEASE
         INTERRUPT --> RELEASE
     end
@@ -123,10 +144,17 @@ flowchart TD
 
         LOCKS[("scheduler_locks")]
         RUNS[("scheduler_runs")]
+        SUBSCRIPTIONS[("subscriptions")]
+        INVOICES[("invoices and invoice_items")]
+        RUN_ITEMS[("scheduler_run_items")]
 
         LOCK_ROW --> LOCKS
         OWNER_RELEASE --> LOCKS
         RUN_ROW --> RUNS
+        CLAIM --> SUBSCRIPTIONS
+        CATCH_UP --> INVOICES
+        SUCCESS --> RUN_ITEMS
+        FAILURE --> RUN_ITEMS
     end
 
     subgraph RESPONSE_MAPPING["9. Response Mapping"]

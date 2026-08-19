@@ -47,6 +47,21 @@ describe('BillingSchedulerAction', () => {
         ).toBe('2026-08-18T10:00:00.000Z');
     });
 
+    it('bounds claim size by the remaining run item capacity', () => {
+        expect(action.resolveClaimBatchLimit(100, 90, 95)).toBe(5);
+        expect(action.resolveClaimBatchLimit(100, 95, 95)).toBe(0);
+    });
+
+    it('stops a run when its configured duration has elapsed', () => {
+        expect(
+            action.isRunDurationLimitReached(
+                new Date('2026-08-18T10:00:00.000Z'),
+                new Date('2026-08-18T10:30:00.000Z'),
+                1800,
+            ),
+        ).toBe(true);
+    });
+
     it('rejects new triggers after scheduler shutdown begins', () => {
         expect(() => action.validateTriggerAllowedOrThrow(true)).toThrow(
             SchedulerShuttingDownException,

@@ -150,6 +150,24 @@ export class BillingSchedulerAction {
         return new Date(now.getTime() - leaseSeconds * 1000);
     }
 
+    /** Resolves the next batch size without exceeding the configured run item limit. */
+    resolveClaimBatchLimit(
+        batchSize: number,
+        claimedCount: number,
+        maxItemsPerRun: number,
+    ): number {
+        return Math.max(0, Math.min(batchSize, maxItemsPerRun - claimedCount));
+    }
+
+    /** Detects whether the configured maximum scheduler run duration has elapsed. */
+    isRunDurationLimitReached(
+        startedAt: Date,
+        now: Date,
+        maxRunSeconds: number,
+    ): boolean {
+        return now.getTime() - startedAt.getTime() >= maxRunSeconds * 1000;
+    }
+
     /** Rejects a trigger that begins after scheduler shutdown has started. */
     validateTriggerAllowedOrThrow(isShuttingDown: boolean): void {
         if (isShuttingDown) throw new SchedulerShuttingDownException();

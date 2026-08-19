@@ -210,4 +210,16 @@ describe('InvoicesAction', () => {
             ),
         ).toThrow(InvoicePeriodConflictException);
     });
+
+    it('continues catch-up only while due and below the configured period limit', () => {
+        expect(
+            action.canContinueCatchUp('2026-07-31', '2026-07-31', 2, 3),
+        ).toBe(true);
+        expect(
+            action.canContinueCatchUp('2026-08-31', '2026-07-31', 2, 3),
+        ).toBe(false);
+        expect(
+            action.isCatchUpLimitReached('2026-07-31', '2026-07-31', 2, 2),
+        ).toBe(true);
+    });
 });
