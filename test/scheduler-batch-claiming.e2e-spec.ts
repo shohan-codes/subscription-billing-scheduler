@@ -3,9 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
 import { DATABASE, type DatabaseClient } from '../src/database/database.module';
-import {
-    BillingSchedulerRepository,
-} from '../src/modules/billing-scheduler/billing-scheduler.repository';
+import { BillingSchedulerRepository } from '../src/modules/billing-scheduler/billing-scheduler.repository';
 
 const CUSTOMER_REFERENCE = `CLAIM-${randomUUID()}`;
 

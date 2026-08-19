@@ -164,10 +164,11 @@ export class BillingSchedulerRepository {
                         eb('processing_expires_at', '<=', query.now),
                     ]),
                 )
-                .where(({ exists, not, selectFrom }) =>
-                    not(
-                        exists(
-                            selectFrom('scheduler_run_items')
+                .where((eb) =>
+                    eb.not(
+                        eb.exists(
+                            eb
+                                .selectFrom('scheduler_run_items')
                                 .select('id')
                                 .whereRef(
                                     'subscription_id',

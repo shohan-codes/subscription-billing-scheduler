@@ -3,15 +3,9 @@ import type { INestApplication } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
 import { DATABASE, type DatabaseClient } from '../src/database/database.module';
-import {
-    BILLING_SCHEDULER_JOB_NAME,
-} from '../src/modules/billing-scheduler/billing-scheduler.constant';
-import {
-    BillingSchedulerRepository,
-} from '../src/modules/billing-scheduler/billing-scheduler.repository';
-import {
-    InvoicesRepository,
-} from '../src/modules/invoices/invoices.repository';
+import { BILLING_SCHEDULER_JOB_NAME } from '../src/modules/billing-scheduler/billing-scheduler.constant';
+import { BillingSchedulerRepository } from '../src/modules/billing-scheduler/billing-scheduler.repository';
+import { InvoicesRepository } from '../src/modules/invoices/invoices.repository';
 
 const CUSTOMER_REFERENCE = `PROCESSING-CLAIM-${randomUUID()}`;
 
@@ -112,11 +106,7 @@ describe('Subscription processing claims (e2e)', () => {
         });
         const clearedByOldOwner = await invoicesRepository.withTransaction(
             (transaction) =>
-                transaction.clearClaim(
-                    subscriptionId,
-                    oldRunId,
-                    'old-owner',
-                ),
+                transaction.clearClaim(subscriptionId, oldRunId, 'old-owner'),
         );
         const persisted = await database
             .selectFrom('subscriptions')
