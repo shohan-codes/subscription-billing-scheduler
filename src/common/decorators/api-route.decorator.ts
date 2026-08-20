@@ -17,12 +17,15 @@ export type ApiRouteOptions = {
     auth?: boolean;
     notFound?: boolean;
     conflict?: boolean;
+    unprocessable?: boolean;
+    serviceUnavailable?: boolean;
     responseType?: Type<unknown>;
     responseIsArray?: boolean;
     dataSchema?: OpenApiSchema;
     envelope?: boolean;
 };
 
+/** Applies the standard OpenAPI contract for an API route. */
 export const ApiRoute = ({
     summary,
     status = 200,
@@ -30,6 +33,8 @@ export const ApiRoute = ({
     auth = true,
     notFound = false,
     conflict = false,
+    unprocessable = false,
+    serviceUnavailable = false,
     responseType,
     responseIsArray = false,
     dataSchema,
@@ -63,6 +68,12 @@ export const ApiRoute = ({
         decorators.push(apiErrorResponse(404, 'Resource not found'));
     }
     if (conflict) decorators.push(apiErrorResponse(409, 'Conflict'));
+    if (unprocessable) {
+        decorators.push(apiErrorResponse(422, 'Business validation failed'));
+    }
+    if (serviceUnavailable) {
+        decorators.push(apiErrorResponse(503, 'Service unavailable'));
+    }
 
     decorators.push(
         apiErrorResponse(429, 'Too many requests'),
@@ -77,6 +88,7 @@ type ResponseSchemaOptions = Pick<
     'responseType' | 'responseIsArray' | 'dataSchema' | 'envelope'
 >;
 
+/** Builds the success response schema for a route. */
 function makeResponseSchema({
     responseType,
     responseIsArray,
@@ -108,6 +120,7 @@ function makeResponseSchema({
     };
 }
 
+/** Builds a standard OpenAPI error response decorator. */
 function apiErrorResponse(status: number, description: string) {
     return ApiResponse({ status, description, schema: apiErrorSchema });
 }

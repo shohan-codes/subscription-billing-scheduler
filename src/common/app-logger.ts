@@ -1,9 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AppConfigService } from '../config/app-config.service';
 import { Clock } from './clock';
+import { $common, type CommonLogLevel } from './common.constant';
 import { RequestContext } from './request-context';
-
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 type LogValue = string | number | boolean | null | undefined;
 export type LogFields = Record<string, LogValue>;
 
@@ -21,23 +20,28 @@ export class AppLogger {
         private readonly context: RequestContext,
     ) {}
 
+    /** Emits a structured debug event. */
     debug(event: string, fields: LogFields = {}): void {
-        this.logger.debug(this.entry('debug', event, fields));
+        this.logger.debug(this.entry($common.log.level.DEBUG, event, fields));
     }
 
+    /** Emits a structured informational event. */
     info(event: string, fields: LogFields = {}): void {
-        this.logger.log(this.entry('info', event, fields));
+        this.logger.log(this.entry($common.log.level.INFO, event, fields));
     }
 
+    /** Emits a structured warning event. */
     warn(event: string, fields: LogFields = {}): void {
-        this.logger.warn(this.entry('warn', event, fields));
+        this.logger.warn(this.entry($common.log.level.WARN, event, fields));
     }
 
+    /** Emits a structured error event. */
     error(event: string, fields: LogFields = {}): void {
-        this.logger.error(this.entry('error', event, fields));
+        this.logger.error(this.entry($common.log.level.ERROR, event, fields));
     }
 
-    private entry(level: LogLevel, event: string, fields: LogFields) {
+    /** Builds a structured log entry with correlation fields. */
+    private entry(level: CommonLogLevel, event: string, fields: LogFields) {
         return {
             ...redact(fields),
             timestamp: this.clock.now().toISOString(),
@@ -46,11 +50,13 @@ export class AppLogger {
             ...(this.context.requestId
                 ? { requestId: this.context.requestId }
                 : {}),
-            instanceId: this.config.app.instanceId,
+            ...(this.context.actorId ? { actorId: this.context.actorId } : {}),
+            instanceId: this.config.app.INSTANCE_ID,
         };
     }
 }
 
+/** Redacts sensitive structured-log fields. */
 function redact(fields: LogFields): LogFields {
     return Object.fromEntries(
         Object.entries(fields).map(([key, value]) => [
