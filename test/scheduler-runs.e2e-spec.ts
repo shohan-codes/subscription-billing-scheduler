@@ -45,8 +45,8 @@ describe('Scheduler run history and manual trigger (e2e)', () => {
             TOKEN: OPERATOR_TOKEN,
         });
         Object.assign(moduleFixture.get(AppConfigService).billing, {
-            cronEnabled: false,
-            timezone: 'UTC',
+            CRON_ENABLED: false,
+            TIMEZONE: 'UTC',
         });
 
         app = moduleFixture.createNestApplication();
