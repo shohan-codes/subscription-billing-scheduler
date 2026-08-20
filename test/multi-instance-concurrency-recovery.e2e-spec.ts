@@ -266,12 +266,7 @@ describe('Multi-instance billing concurrency and recovery (e2e)', () => {
         const crashedOwner = `crashed:${randomUUID()}`;
         const retryOwner = `retry:${randomUUID()}`;
         subscriptionIds.push(subscriptionId);
-        await insertRun(
-            first.database,
-            crashedRunId,
-            INSTANCE_A,
-            crashedOwner,
-        );
+        await insertRun(first.database, crashedRunId, INSTANCE_A, crashedOwner);
         await insertRun(second.database, retryRunId, INSTANCE_B, retryOwner);
         await first.database
             .insertInto('subscriptions')
