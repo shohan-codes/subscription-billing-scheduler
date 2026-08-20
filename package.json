@@ -26,6 +26,7 @@
         "db:migrate": "kysely migrate latest",
         "db:rollback": "kysely migrate rollback --all",
         "db:seed": "ts-node scripts/seed-subscriptions.ts",
+        "benchmark:billing": "ts-node scripts/benchmark-billing.ts",
         "db:migration:create": "kysely migrate make"
     },
     "dependencies": {
