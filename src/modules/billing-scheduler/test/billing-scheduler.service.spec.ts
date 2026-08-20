@@ -52,8 +52,7 @@ function createService(
             expiredClaimCount: 0,
         }),
     );
-    const generateClaimedCatchUp =
-        options.generateClaimedCatchUp ?? jest.fn();
+    const generateClaimedCatchUp = options.generateClaimedCatchUp ?? jest.fn();
     const createRunOrThrow = jest
         .fn()
         .mockImplementation((insert: SchedulerRunInsert) =>
@@ -222,27 +221,31 @@ describe('BillingSchedulerService', () => {
     it('bounds local item processing by the configured concurrency', async () => {
         let active = 0;
         let maxActive = 0;
-        const generateClaimedCatchUp = jest.fn().mockImplementation(async () => {
-            active += 1;
-            maxActive = Math.max(maxActive, active);
-            await new Promise((resolve) => setImmediate(resolve));
-            active -= 1;
-            return {
-                result: $invoice.generationOutcome.CREATED,
-                invoices: [],
-                nextBillingDate: '2026-09-18',
-                periodsProcessed: 1,
-                invoicesCreated: 1,
-                createdCurrencies: ['USD'],
-                limitReached: false,
-            };
-        });
-        const batch = Array.from({ length: 4 }, (_, index) =>
-            ({
-                id: `00000000-0000-4000-8000-00000000010${index}`,
-                next_billing_date: '2026-08-18',
-                billing_failure_count: 0,
-            }) as DueSubscriptionRecord,
+        const generateClaimedCatchUp = jest
+            .fn()
+            .mockImplementation(async () => {
+                active += 1;
+                maxActive = Math.max(maxActive, active);
+                await new Promise((resolve) => setImmediate(resolve));
+                active -= 1;
+                return {
+                    result: $invoice.generationOutcome.CREATED,
+                    invoices: [],
+                    nextBillingDate: '2026-09-18',
+                    periodsProcessed: 1,
+                    invoicesCreated: 1,
+                    createdCurrencies: ['USD'],
+                    limitReached: false,
+                };
+            });
+        const batch = Array.from(
+            { length: 4 },
+            (_, index) =>
+                ({
+                    id: `00000000-0000-4000-8000-00000000010${index}`,
+                    next_billing_date: '2026-08-18',
+                    billing_failure_count: 0,
+                }) as DueSubscriptionRecord,
         );
         const { service } = createService(true, false, {
             concurrency: 2,
