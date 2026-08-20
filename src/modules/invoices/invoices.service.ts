@@ -132,6 +132,7 @@ export class InvoicesService {
             const invoices: InvoiceRecord[] = [];
             let periodsProcessed = 0;
             let invoicesCreated = 0;
+            const createdCurrencies: string[] = [];
 
             do {
                 const draft = this.action.buildGenerationDraft(
@@ -154,6 +155,7 @@ export class InvoicesService {
                 if (createdInvoice) {
                     await transaction.createItemOrThrow(draft.item);
                     invoicesCreated += 1;
+                    createdCurrencies.push(invoice.currency);
                 }
 
                 invoices.push(invoice);
@@ -208,6 +210,7 @@ export class InvoicesService {
                 nextBillingDate: updated.next_billing_date,
                 periodsProcessed,
                 invoicesCreated,
+                createdCurrencies,
                 limitReached: this.action.isCatchUpLimitReached(
                     updated.next_billing_date,
                     request.cutoffDate,

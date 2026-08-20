@@ -16,6 +16,7 @@ export class BillingSchedulerCron
     implements OnModuleInit, BeforeApplicationShutdown
 {
     private job?: CronJob;
+    private ready = false;
 
     constructor(
         private readonly config: AppConfigService,
@@ -30,6 +31,7 @@ export class BillingSchedulerCron
             this.logger.info($billingScheduler.logEvent.CRON_DISABLED, {
                 jobName: $billingScheduler.job.NAME,
             });
+            this.ready = true;
             return;
         }
 
@@ -42,6 +44,7 @@ export class BillingSchedulerCron
 
         this.registry.addCronJob($billingScheduler.job.NAME, this.job);
         this.job.start();
+        this.ready = true;
         this.logger.info($billingScheduler.logEvent.CRON_REGISTERED, {
             jobName: $billingScheduler.job.NAME,
             cronExpression: this.config.billing.CRON_EXPRESSION,
@@ -49,8 +52,14 @@ export class BillingSchedulerCron
         });
     }
 
+    /** Reports whether scheduler initialization completed and shutdown has not begun. */
+    get isReady(): boolean {
+        return this.ready;
+    }
+
     /** Stops the registered cron task before application teardown begins. */
     beforeApplicationShutdown(): void {
+        this.ready = false;
         void this.job?.stop();
         this.logger.info($billingScheduler.logEvent.CRON_STOPPED, {
             jobName: $billingScheduler.job.NAME,

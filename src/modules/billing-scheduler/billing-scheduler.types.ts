@@ -6,6 +6,7 @@ import type {
     SchedulerRunsTable,
     SubscriptionsTable,
 } from '../../database/database.types';
+import type { SubscriptionBillingState } from '../subscriptions/subscriptions.constant';
 import type {
     BillingItemFailureType,
     SchedulerRunItemResult,
@@ -38,6 +39,16 @@ export interface SubscriptionBatchClaimQuery extends DueSubscriptionBatchQuery {
     owner: string;
     claimStartedAt: Date;
     claimExpiresAt: Date;
+}
+
+export interface SubscriptionBatchClaimResult {
+    subscriptions: DueSubscriptionRecord[];
+    expiredClaimCount: number;
+}
+
+export interface BillingDueCount {
+    billingState: SubscriptionBillingState;
+    count: number;
 }
 
 export interface SchedulerHeartbeatContext {
